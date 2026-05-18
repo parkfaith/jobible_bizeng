@@ -38,6 +38,11 @@ app/
     feedback/interview/route.ts  # POST — 실전 면접 종합 피드백
     realtime-token/route.ts   # POST — ephemeral token 발급
     notes/route.ts            # GET, POST, PATCH, DELETE
+    expressions/daily/route.ts  # GET — GPT-4o 생성 + Turso 일별 캐시, PATCH — 수동 수정
+  expressions/page.tsx        # 표현 카드 전체 보기 + 수정 UI (클라이언트)
+components/
+  ExpressionCard.tsx          # 홈 삽입용 접힌 카드 (클라이언트)
+  ExpressionCardFetcher.tsx   # 캐시 없을 때 클라이언트에서 API 호출
 lib/
   db/
     schema.ts                 # 6개 테이블 정의
@@ -83,9 +88,9 @@ npm run db:studio    # Drizzle Studio (DB 브라우저)
 | `practice_turns` | 질문-답변 턴 기록 |
 | `feedbacks` | 4항목 점수 + 피드백 텍스트 |
 | `answer_notes` | 최종 암기용 답변 + 핵심 표현 |
-| `daily_patterns` | 오늘의 질문 캐시 (날짜별 1행) |
+| `daily_patterns` | 오늘의 질문·표현 캐시 — `patternType`으로 구분 (`daily_question` / `daily_expression`) |
 
-## 현재 상태 (2026-05-18)
+## 현재 상태 (2026-05-19)
 
-MVP 4개 Phase 전체 완료. 배포 전 단계.  
+MVP 4개 Phase 전체 완료 + 오늘의 표현 카드(Daily Expression Card) 완료. 배포 전 단계.  
 다음 작업 후보: 프로필 수정 화면, Vercel 배포, iOS 테스트.
