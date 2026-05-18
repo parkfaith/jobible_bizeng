@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { integer, sqliteTable, text, real } from "drizzle-orm/sqlite-core";
+import { integer, sqliteTable, text, real, uniqueIndex } from "drizzle-orm/sqlite-core";
 
 export const profile = sqliteTable("profile", {
   id: integer("id").primaryKey({ autoIncrement: true }),
@@ -71,10 +71,14 @@ export const answerNotes = sqliteTable("answer_notes", {
   updatedAt: text("updated_at").default(sql`(datetime('now'))`),
 });
 
-export const dailyPatterns = sqliteTable("daily_patterns", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
-  date: text("date").notNull().unique(), // YYYY-MM-DD
-  patternType: text("pattern_type").notNull(),
-  content: text("content").notNull(), // JSON
-  createdAt: text("created_at").default(sql`(datetime('now'))`),
-});
+export const dailyPatterns = sqliteTable(
+  "daily_patterns",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    date: text("date").notNull(),
+    patternType: text("pattern_type").notNull(),
+    content: text("content").notNull(), // JSON
+    createdAt: text("created_at").default(sql`(datetime('now'))`),
+  },
+  (t) => [uniqueIndex("daily_patterns_date_type_idx").on(t.date, t.patternType)]
+);

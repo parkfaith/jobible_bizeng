@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { dailyPatterns, profile } from "@/lib/db/schema";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 
 const CATEGORIES = ["intro", "career", "leadership", "tech", "failure"] as const;
 
@@ -19,7 +19,7 @@ export async function GET() {
   const cached = await db
     .select()
     .from(dailyPatterns)
-    .where(eq(dailyPatterns.date, today))
+    .where(and(eq(dailyPatterns.date, today), eq(dailyPatterns.patternType, "daily_question")))
     .limit(1);
 
   if (cached.length > 0) {

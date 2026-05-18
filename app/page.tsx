@@ -3,8 +3,10 @@ import { redirect } from "next/navigation";
 
 export const dynamic = "force-dynamic";
 import { db } from "@/lib/db";
-import { profile, practiceSessions, answerNotes } from "@/lib/db/schema";
-import { desc, gte, sql } from "drizzle-orm";
+import { profile, practiceSessions, answerNotes, dailyPatterns } from "@/lib/db/schema";
+import { and, desc, eq, gte, sql } from "drizzle-orm";
+import ExpressionCard, { type ExpressionData } from "@/components/ExpressionCard";
+import ExpressionCardFetcher from "@/components/ExpressionCardFetcher";
 
 export default async function HomePage() {
   const profileRow = await db.select().from(profile).limit(1);
@@ -12,7 +14,6 @@ export default async function HomePage() {
 
   const userProfile = profileRow[0];
 
-  // 이번 주 연습 횟수
   const weekAgo = new Date();
   weekAgo.setDate(weekAgo.getDate() - 7);
   const weekSessions = await db
@@ -21,18 +22,25 @@ export default async function HomePage() {
     .where(gte(practiceSessions.startedAt, weekAgo.toISOString()));
   const weekCount = Number(weekSessions[0]?.count ?? 0);
 
-  // 저장된 답변 노트 수
-  const noteCount = await db
-    .select({ count: sql<number>`count(*)` })
-    .from(answerNotes);
+  const noteCount = await db.select({ count: sql<number>`count(*)` }).from(answerNotes);
   const totalNotes = Number(noteCount[0]?.count ?? 0);
 
-  // 최근 답변 노트 2개
   const recentNotes = await db
     .select()
     .from(answerNotes)
     .orderBy(desc(answerNotes.updatedAt))
     .limit(2);
+
+  // 오늘의 표현: 캐시에 있으면 서버에서 렌더, 없으면 클라이언트가 API 호출해 생성
+  const today = new Date().toISOString().slice(0, 10);
+  const expressionRow = await db
+    .select()
+    .from(dailyPatterns)
+    .where(and(eq(dailyPatterns.date, today), eq(dailyPatterns.patternType, "daily_expression")))
+    .limit(1);
+  const expressionData: ExpressionData | null = expressionRow[0]
+    ? (JSON.parse(expressionRow[0].content) as ExpressionData)
+    : null;
 
   const CATEGORY_LABEL: Record<string, string> = {
     intro: "자기소개",
@@ -70,8 +78,8 @@ export default async function HomePage() {
 
       {/* Secondary CTA — 오늘의 질문 */}
       <Link
-        href="/practice?mode=daily"
-        className="block w-full bg-slate-800 hover:bg-slate-700 active:bg-slate-900 rounded-2xl p-5 mb-6 transition-colors border border-slate-700"
+        href="/practice"
+        className="block w-full bg-slate-800 hover:bg-slate-700 active:bg-slate-900 rounded-2xl p-5 mb-4 transition-colors border border-slate-700"
       >
         <div className="flex items-center gap-4">
           <div className="w-12 h-12 bg-slate-700 rounded-xl flex items-center justify-center text-2xl">
@@ -85,6 +93,17 @@ export default async function HomePage() {
           </div>
         </div>
       </Link>
+
+      {/* 오늘의 표현 카드 */}
+      <div className="mb-6">
+        {expressionData ? (
+          <ExpressionCard data={expressionData} />
+        ) : (
+          <div className="bg-slate-800 border border-slate-700 rounded-2xl px-5 py-4">
+            <ExpressionCardFetcher />
+          </div>
+        )}
+      </div>
 
       {/* Stats */}
       <div className="grid grid-cols-2 gap-3 mb-6">
@@ -139,10 +158,7 @@ export default async function HomePage() {
           <span className="text-xl">🏠</span>
           <span className="text-xs">홈</span>
         </Link>
-        <Link
-          href="/practice/interview"
-          className="flex flex-col items-center gap-1 text-slate-500"
-        >
+        <Link href="/practice/interview" className="flex flex-col items-center gap-1 text-slate-500">
           <span className="text-xl">🎙️</span>
           <span className="text-xs">면접</span>
         </Link>
