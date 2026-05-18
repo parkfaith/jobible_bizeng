@@ -1,0 +1,14 @@
+@import "tailwindcss";
+
+@theme inline {
+  --font-sans: var(--font-geist);
+}
+
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Safe area for iOS */
+body {
+  padding-bottom: env(safe-area-inset-bottom);
+}
