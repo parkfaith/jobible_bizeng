@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { profile } from "@/lib/db/schema";
+import { feedbacks, profile } from "@/lib/db/schema";
 
 interface Turn {
   role: "ai" | "user";
@@ -8,10 +8,19 @@ interface Turn {
 }
 
 export async function POST(req: Request) {
-  const { turns }: { turns: Turn[] } = await req.json();
+  const { turns, sessionId }: { turns: Turn[]; sessionId?: number } = await req.json();
 
   if (!turns || turns.length < 2) {
     return NextResponse.json({ error: "Not enough conversation data" }, { status: 400 });
+  }
+
+  if (turns.length > 20) {
+    return NextResponse.json({ error: "Too many interview turns" }, { status: 413 });
+  }
+
+  const totalChars = turns.reduce((sum, t) => sum + t.text.length, 0);
+  if (totalChars > 12000) {
+    return NextResponse.json({ error: "Conversation transcript is too long" }, { status: 413 });
   }
 
   const profiles = await db.select().from(profile).limit(1);
@@ -67,10 +76,36 @@ improvementSentences: exactly 3 English sentences the candidate can immediately 
   });
 
   if (!res.ok) {
-    return NextResponse.json({ error: await res.text() }, { status: res.status });
+    console.error("interview feedback generation failed", await res.text());
+    return NextResponse.json(
+      { error: "Failed to generate interview feedback" },
+      { status: res.status }
+    );
   }
 
   const data = await res.json();
-  const feedback = JSON.parse(data.choices[0].message.content);
+  let feedback: ReturnType<typeof JSON.parse>;
+  try {
+    feedback = JSON.parse(data.choices[0].message.content);
+  } catch {
+    console.error("interview feedback JSON parse failed", data.choices?.[0]?.message?.content);
+    return NextResponse.json({ error: "Failed to parse interview feedback" }, { status: 500 });
+  }
+
+  if (sessionId) {
+    try {
+      await db.insert(feedbacks).values({
+        sessionId,
+        feedbackKo: feedback.nextFocusKo ?? "",
+        bestAnswer: JSON.stringify(feedback.bestAnswer),
+        worstAnswer: JSON.stringify(feedback.worstAnswer),
+        nextFocus: feedback.nextFocusKo,
+        keyExpressions: JSON.stringify(feedback.improvementSentences ?? []),
+      });
+    } catch (err) {
+      console.error("interview feedback DB save failed", err);
+    }
+  }
+
   return NextResponse.json(feedback);
 }

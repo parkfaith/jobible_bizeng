@@ -2,8 +2,10 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import type { DailyPatternSet } from "@/lib/pattern-set";
 
 type Stage =
+  | "briefing"
   | "connecting"
   | "interviewing"
   | "ending"
@@ -22,22 +24,48 @@ interface InterviewFeedback {
   improvementSentences: string[];
 }
 
+const MAX_INTERVIEW_SECONDS = 10 * 60;
+const MAX_INTERVIEW_QUESTIONS = 4;
+
+function InfoPill({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="bg-slate-900 rounded-xl px-3 py-3">
+      <p className="text-slate-500 text-xs">{label}</p>
+      <p className="text-white text-sm font-semibold mt-0.5">{value}</p>
+    </div>
+  );
+}
+
 export default function InterviewPage() {
-  const [stage, setStage] = useState<Stage>("connecting");
+  const [stage, setStage] = useState<Stage>("briefing");
   const [turns, setTurns] = useState<Turn[]>([]);
+  const [patternSet, setPatternSet] = useState<DailyPatternSet | null>(null);
   const [aiSpeaking, setAiSpeaking] = useState(false);
   const [userSpeaking, setUserSpeaking] = useState(false);
   const [liveAiText, setLiveAiText] = useState("");
   const [feedback, setFeedback] = useState<InterviewFeedback | null>(null);
   const [errorMsg, setErrorMsg] = useState("");
   const [elapsedSec, setElapsedSec] = useState(0);
+  const [savedNote, setSavedNote] = useState(false);
+  const [savingNote, setSavingNote] = useState(false);
+  const [saveNoteError, setSaveNoteError] = useState("");
 
   const pcRef = useRef<RTCPeerConnection | null>(null);
   const dcRef = useRef<RTCDataChannel | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
   const turnsRef = useRef<Turn[]>([]);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const transcriptEndRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    fetch("/api/patterns/daily")
+      .then((res) => res.json())
+      .then((body) => {
+        if (!body.error) setPatternSet(body);
+      })
+      .catch(() => setPatternSet(null));
+  }, []);
 
   // Keep ref in sync for use inside callbacks
   useEffect(() => {
@@ -51,6 +79,17 @@ export default function InterviewPage() {
   const formatTime = (s: number) =>
     `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
 
+  function startInterview() {
+    setTurns([]);
+    setFeedback(null);
+    setErrorMsg("");
+    setSavedNote(false);
+    setSavingNote(false);
+    setSaveNoteError("");
+    setElapsedSec(0);
+    setStage("connecting");
+  }
+
   const endInterview = useCallback(async () => {
     setStage("ending");
     if (timerRef.current) clearInterval(timerRef.current);
@@ -58,7 +97,12 @@ export default function InterviewPage() {
     // Close WebRTC
     dcRef.current?.close();
     pcRef.current?.close();
-    audioRef.current?.pause();
+    streamRef.current?.getTracks().forEach((t) => t.stop());
+    streamRef.current = null;
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.srcObject = null;
+    }
 
     const allTurns = turnsRef.current;
     if (allTurns.length < 2) {
@@ -74,33 +118,48 @@ export default function InterviewPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ mode: "interview" }),
       });
+      if (!sessionRes.ok) {
+        throw new Error("면접 세션 저장에 실패했습니다.");
+      }
       const session = await sessionRes.json();
-      fetch("/api/sessions", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          id: session.id,
-          status: "completed",
-          endedAt: new Date().toISOString(),
-        }),
-      });
+      const sessionId: number = session.id;
 
       const res = await fetch("/api/feedback/interview", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ turns: allTurns }),
+        body: JSON.stringify({ turns: allTurns, sessionId }),
       });
+      if (!res.ok) {
+        throw new Error("면접 피드백 생성에 실패했습니다.");
+      }
       const fb = await res.json();
       setFeedback(fb);
       setStage("feedback");
+
+      fetch("/api/sessions", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: sessionId,
+          status: "completed",
+          endedAt: new Date().toISOString(),
+        }),
+      });
     } catch {
       setErrorMsg("피드백 생성 중 오류가 발생했습니다.");
       setStage("error");
     }
   }, []);
 
+  const endInterviewRef = useRef(endInterview);
+
+  useEffect(() => {
+    endInterviewRef.current = endInterview;
+  }, [endInterview]);
+
   // WebRTC setup
   useEffect(() => {
+    if (stage !== "connecting") return;
     let cancelled = false;
 
     async function connect() {
@@ -109,7 +168,8 @@ export default function InterviewPage() {
         const tokenRes = await fetch("/api/realtime-token", { method: "POST" });
         if (!tokenRes.ok) throw new Error("토큰 발급 실패");
         const tokenData = await tokenRes.json();
-        const ephemeralKey: string = tokenData.client_secret?.value;
+        const ephemeralKey: string =
+          tokenData.value ?? tokenData.client_secret?.value ?? tokenData.session?.client_secret?.value;
         if (!ephemeralKey) throw new Error("ephemeral key 없음");
 
         if (cancelled) return;
@@ -128,10 +188,12 @@ export default function InterviewPage() {
 
         // 4. Mic track
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        streamRef.current = stream;
         stream.getTracks().forEach((t) => pc.addTrack(t, stream));
 
         if (cancelled) {
           stream.getTracks().forEach((t) => t.stop());
+          streamRef.current = null;
           return;
         }
 
@@ -143,34 +205,60 @@ export default function InterviewPage() {
           const event = JSON.parse(e.data);
           handleRealtimeEvent(event);
         };
+        dc.onopen = () => {
+          dc.send(
+            JSON.stringify({
+              type: "response.create",
+              response: {
+                instructions:
+                  "Start the short interview now. Greet the candidate briefly and ask the first question about today's focus topic. Keep the total session to 3-4 questions and 5-10 minutes.",
+              },
+            })
+          );
+        };
 
         // 6. SDP offer
         const offer = await pc.createOffer();
         await pc.setLocalDescription(offer);
 
         // 7. Send offer to OpenAI
-        const sdpRes = await fetch(
-          "https://api.openai.com/v1/realtime?model=gpt-4o-realtime-preview-2024-12-17",
-          {
-            method: "POST",
-            headers: {
-              Authorization: `Bearer ${ephemeralKey}`,
-              "Content-Type": "application/sdp",
-            },
-            body: offer.sdp,
-          }
-        );
+        const sdpRes = await fetch("https://api.openai.com/v1/realtime/calls", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${ephemeralKey}`,
+            "Content-Type": "application/sdp",
+          },
+          body: offer.sdp,
+        });
         if (!sdpRes.ok) throw new Error("SDP exchange failed");
         const answerSdp = await sdpRes.text();
         await pc.setRemoteDescription({ type: "answer", sdp: answerSdp });
 
         if (!cancelled) {
           setStage("interviewing");
-          timerRef.current = setInterval(() => setElapsedSec((s) => s + 1), 1000);
+          timerRef.current = setInterval(
+            () =>
+              setElapsedSec((s) => {
+                const next = s + 1;
+                if (next >= MAX_INTERVIEW_SECONDS) {
+                  window.setTimeout(() => endInterviewRef.current(), 0);
+                }
+                return next;
+              }),
+            1000
+          );
         }
       } catch (err) {
         if (!cancelled) {
-          setErrorMsg(err instanceof Error ? err.message : "연결 오류가 발생했습니다.");
+          const message = err instanceof Error ? err.message : "";
+          const isMicPermissionError =
+            message.toLowerCase().includes("permission") ||
+            (err instanceof Error && err.name === "NotAllowedError");
+          setErrorMsg(
+            isMicPermissionError
+              ? "마이크 권한이 필요합니다. 브라우저 주소창 또는 설정에서 마이크 사용을 허용한 뒤 다시 시작해 주세요."
+              : message || "연결 오류가 발생했습니다."
+          );
           setStage("error");
         }
       }
@@ -180,6 +268,7 @@ export default function InterviewPage() {
 
     function handleRealtimeEvent(event: { type: string; [key: string]: unknown }) {
       switch (event.type) {
+        case "response.output_audio_transcript.delta":
         case "response.audio_transcript.delta": {
           const delta = (event.delta as string) ?? "";
           liveAiBuffer += delta;
@@ -187,6 +276,7 @@ export default function InterviewPage() {
           setAiSpeaking(true);
           break;
         }
+        case "response.output_audio_transcript.done":
         case "response.audio_transcript.done": {
           const text = (event.transcript as string) ?? liveAiBuffer;
           if (text.trim()) addTurn("ai", text.trim());
@@ -217,14 +307,84 @@ export default function InterviewPage() {
       if (timerRef.current) clearInterval(timerRef.current);
       dcRef.current?.close();
       pcRef.current?.close();
+      streamRef.current?.getTracks().forEach((t) => t.stop());
+      streamRef.current = null;
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.srcObject = null;
+      }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [stage]);
 
   // Auto-scroll transcript
   useEffect(() => {
     transcriptEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [turns, liveAiText]);
+
+  useEffect(() => {
+    if (stage !== "interviewing") return;
+    const aiQuestionCount = turns.filter((turn) => turn.role === "ai").length;
+    if (aiQuestionCount >= MAX_INTERVIEW_QUESTIONS && turns.some((turn) => turn.role === "user")) {
+      const id = window.setTimeout(() => endInterviewRef.current(), 2500);
+      return () => window.clearTimeout(id);
+    }
+  }, [stage, turns]);
+
+  // ── BRIEFING ────────────────────────────────────────────────────────────
+  if (stage === "briefing") {
+    return (
+      <main className="min-h-screen bg-slate-950 flex flex-col max-w-md mx-auto px-4 pt-7 pb-24">
+        <div className="flex items-center gap-3 mb-6">
+          <Link href="/" className="text-slate-400 text-2xl leading-none">←</Link>
+          <div className="w-11 h-11 rounded-2xl bg-violet-500/15 border border-violet-500/30 flex items-center justify-center text-2xl shrink-0">
+            🎙️
+          </div>
+          <div>
+            <p className="text-slate-400 text-xs">실전 음성 면접</p>
+            <h1 className="text-white font-bold text-lg">5~10분 짧은 면접</h1>
+          </div>
+        </div>
+
+        <section className="bg-indigo-950 border border-indigo-800 rounded-2xl p-5 mb-4">
+          <p className="text-indigo-300 text-xs font-medium mb-2">오늘의 면접 유형</p>
+          <h2 className="text-white text-xl font-bold leading-tight">
+            {patternSet?.topic ?? "Senior AI Leadership Interview"}
+          </h2>
+          <p className="text-indigo-100 text-sm leading-relaxed mt-3">
+            오늘의 답변 패턴을 바탕으로 실제 면접처럼 영어로 대화합니다. 면접 중에는 코칭하지 않고, 종료 후에만 피드백을 제공합니다.
+          </p>
+        </section>
+
+        <section className="bg-slate-800 border border-slate-700 rounded-2xl p-5 mb-4">
+          <p className="text-slate-300 text-sm font-semibold mb-3">진행 방식</p>
+          <div className="grid grid-cols-2 gap-2">
+            <InfoPill label="시간" value="5~10분" />
+            <InfoPill label="질문" value="3~4개" />
+            <InfoPill label="입력" value="영어 음성" />
+            <InfoPill label="피드백" value="종료 후" />
+          </div>
+        </section>
+
+        {patternSet && (
+          <section className="bg-slate-800 border border-slate-700 rounded-2xl p-5 mb-5">
+            <p className="text-slate-400 text-xs mb-2">첫 질문 예상 방향</p>
+            <p className="text-white text-sm leading-relaxed">{patternSet.exercise.question}</p>
+          </section>
+        )}
+
+        <button
+          onClick={startInterview}
+          className="mt-auto w-full py-4 rounded-xl bg-indigo-600 text-white font-semibold text-base active:scale-[0.99]"
+        >
+          면접 시작
+        </button>
+        <p className="text-slate-500 text-xs text-center mt-3">
+          이어폰을 착용하면 주변 소음 인식이 줄어듭니다.
+        </p>
+      </main>
+    );
+  }
 
   // ── CONNECTING ──────────────────────────────────────────────────────────
   if (stage === "connecting") {
@@ -273,6 +433,9 @@ export default function InterviewPage() {
       <main className="min-h-screen bg-slate-950 flex flex-col max-w-md mx-auto px-4 pt-6 pb-10">
         <div className="flex items-center gap-3 mb-6">
           <Link href="/" className="text-slate-400 text-2xl leading-none">←</Link>
+          <div className="w-11 h-11 rounded-2xl bg-green-500/15 border border-green-500/30 flex items-center justify-center text-2xl shrink-0">
+            🧾
+          </div>
           <div>
             <p className="text-slate-400 text-xs">면접 종료</p>
             <h1 className="text-white font-bold text-lg">종합 피드백</h1>
@@ -291,7 +454,7 @@ export default function InterviewPage() {
             </div>
             <p className="text-slate-400 text-xs mb-1">{feedback.bestAnswer.question}</p>
             <p className="text-white text-sm leading-relaxed mb-3">
-              "{feedback.bestAnswer.answer}"
+              {feedback.bestAnswer.answer}
             </p>
             <p className="text-slate-300 text-xs leading-relaxed border-t border-slate-700 pt-3">
               {feedback.bestAnswer.reasonKo}
@@ -306,7 +469,7 @@ export default function InterviewPage() {
             </div>
             <p className="text-slate-400 text-xs mb-1">{feedback.worstAnswer.question}</p>
             <p className="text-white text-sm leading-relaxed mb-3">
-              "{feedback.worstAnswer.answer}"
+              {feedback.worstAnswer.answer}
             </p>
             <p className="text-slate-300 text-xs leading-relaxed border-t border-slate-700 pt-3">
               {feedback.worstAnswer.reasonKo}
@@ -327,11 +490,61 @@ export default function InterviewPage() {
             <div className="flex flex-col gap-2">
               {feedback.improvementSentences.map((s, i) => (
                 <div key={i} className="bg-slate-700 rounded-xl px-4 py-3 text-white text-sm">
-                  "{s}"
+                  {s}
                 </div>
               ))}
             </div>
           </div>
+
+          {/* 표현 저장 버튼 */}
+          {saveNoteError && (
+            <p className="text-red-300 text-xs leading-relaxed -mb-2">
+              {saveNoteError}
+            </p>
+          )}
+          <button
+            onClick={async () => {
+              if (!feedback || savedNote || savingNote) return;
+              setSavingNote(true);
+              setSaveNoteError("");
+              try {
+                const res = await fetch("/api/notes", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    category: "career",
+                    questionText: feedback.bestAnswer.question,
+                    originalAnswer: feedback.worstAnswer.answer,
+                    improvedAnswer: feedback.bestAnswer.answer,
+                    finalAnswer: feedback.bestAnswer.answer,
+                    keyExpressions: feedback.improvementSentences,
+                  }),
+                });
+                if (!res.ok) {
+                  throw new Error("note save failed");
+                }
+                setSavedNote(true);
+              } catch {
+                setSaveNoteError("답변 노트 저장에 실패했습니다. 잠시 후 다시 시도해 주세요.");
+              } finally {
+                setSavingNote(false);
+              }
+            }}
+            disabled={savedNote || savingNote}
+            className={`w-full py-4 rounded-xl font-semibold text-base transition-colors ${
+              savedNote
+                ? "bg-green-800 text-green-300 border border-green-700"
+                : savingNote
+                ? "bg-slate-700 text-slate-400 border border-slate-600"
+                : "bg-indigo-600 text-white hover:bg-indigo-500"
+            }`}
+          >
+            {savedNote
+              ? "답변 노트 저장됨 ✓"
+              : savingNote
+              ? "저장 중..."
+              : "핵심 표현 노트에 저장"}
+          </button>
 
           <Link
             href="/"
@@ -352,12 +565,15 @@ export default function InterviewPage() {
       {/* Top bar */}
       <div className="flex items-center gap-3 px-4 pt-5 pb-3 border-b border-slate-800">
         <div className="flex items-center gap-2 flex-1">
+          <span className="w-8 h-8 rounded-xl bg-red-500/10 border border-red-500/20 flex items-center justify-center text-base">
+            🎙️
+          </span>
           <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
           <span className="text-red-400 text-xs font-medium">LIVE</span>
           <span className="text-slate-500 text-xs font-mono ml-1">{formatTime(elapsedSec)}</span>
         </div>
         <p className="text-slate-400 text-xs">
-          질문 {questionCount}/6
+          질문 {Math.min(questionCount, MAX_INTERVIEW_QUESTIONS)}/{MAX_INTERVIEW_QUESTIONS}
         </p>
         <button
           onClick={endInterview}

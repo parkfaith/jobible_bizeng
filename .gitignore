@@ -16,6 +16,8 @@
 # next.js
 /.next/
 /out/
+/public/sw.js
+/public/workbox-*.js
 
 # production
 /build
@@ -37,6 +39,9 @@ yarn-error.log*
 
 # vercel
 .vercel
+
+# Claude Code local settings
+.claude/
 
 # typescript
 *.tsbuildinfo

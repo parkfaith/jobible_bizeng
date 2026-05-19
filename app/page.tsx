@@ -5,8 +5,13 @@ export const dynamic = "force-dynamic";
 import { db } from "@/lib/db";
 import { profile, practiceSessions, answerNotes, dailyPatterns } from "@/lib/db/schema";
 import { and, desc, eq, gte, sql } from "drizzle-orm";
-import ExpressionCard, { type ExpressionData } from "@/components/ExpressionCard";
-import ExpressionCardFetcher from "@/components/ExpressionCardFetcher";
+import PatternSetCard from "@/components/PatternSetCard";
+import PatternSetFetcher from "@/components/PatternSetFetcher";
+import {
+  DAILY_PATTERN_SET_TYPE,
+  getKstDate,
+  type DailyPatternSet,
+} from "@/lib/pattern-set";
 
 export default async function HomePage() {
   const profileRow = await db.select().from(profile).limit(1);
@@ -31,15 +36,14 @@ export default async function HomePage() {
     .orderBy(desc(answerNotes.updatedAt))
     .limit(2);
 
-  // 오늘의 표현: 캐시에 있으면 서버에서 렌더, 없으면 클라이언트가 API 호출해 생성
-  const today = new Date().toISOString().slice(0, 10);
-  const expressionRow = await db
+  const today = getKstDate();
+  const patternSetRow = await db
     .select()
     .from(dailyPatterns)
-    .where(and(eq(dailyPatterns.date, today), eq(dailyPatterns.patternType, "daily_expression")))
+    .where(and(eq(dailyPatterns.date, today), eq(dailyPatterns.patternType, DAILY_PATTERN_SET_TYPE)))
     .limit(1);
-  const expressionData: ExpressionData | null = expressionRow[0]
-    ? (JSON.parse(expressionRow[0].content) as ExpressionData)
+  const patternSet: DailyPatternSet | null = patternSetRow[0]
+    ? (JSON.parse(patternSetRow[0].content) as DailyPatternSet)
     : null;
 
   const CATEGORY_LABEL: Record<string, string> = {
@@ -53,56 +57,37 @@ export default async function HomePage() {
   return (
     <main className="min-h-screen bg-slate-950 flex flex-col max-w-md mx-auto px-4 pt-8 pb-24">
       {/* Header */}
-      <div className="mb-8">
-        <p className="text-slate-400 text-sm">안녕하세요, Ryan</p>
-        <h1 className="text-2xl font-bold text-white mt-1">오늘도 면접 준비할게요</h1>
-        <p className="text-slate-500 text-xs mt-1">목표: {userProfile.targetPosition}</p>
+      <div className="mb-6 flex items-start gap-3">
+        <div className="w-12 h-12 rounded-2xl bg-indigo-500/15 border border-indigo-500/30 flex items-center justify-center text-2xl shrink-0">
+          🎯
+        </div>
+        <div className="min-w-0">
+          <p className="text-slate-400 text-sm">안녕하세요, Ryan</p>
+          <h1 className="text-2xl font-bold text-white mt-1">오늘도 면접 준비할게요</h1>
+          <p className="text-slate-500 text-xs mt-1">목표: {userProfile.targetPosition}</p>
+        </div>
       </div>
 
       {/* Primary CTA — 실전 면접 */}
       <Link
         href="/practice/interview"
-        className="block w-full bg-indigo-600 hover:bg-indigo-500 active:bg-indigo-700 rounded-2xl p-6 mb-4 transition-colors"
+        className="block w-full bg-indigo-600 hover:bg-indigo-500 active:bg-indigo-700 rounded-2xl px-4 py-4 mb-4 transition-colors"
       >
-        <div className="flex items-center gap-4">
-          <div className="w-14 h-14 bg-indigo-500 rounded-xl flex items-center justify-center text-3xl">
+        <div className="flex items-center gap-3">
+          <div className="w-11 h-11 bg-indigo-500 rounded-xl flex items-center justify-center text-2xl shrink-0">
             🎙️
           </div>
           <div>
             <p className="text-indigo-200 text-sm font-medium">AI 면접관과 함께</p>
-            <p className="text-white text-xl font-bold">음성 실전 면접 시작</p>
-            <p className="text-indigo-300 text-xs mt-1">5~7개 질문 · 약 20분</p>
+            <p className="text-white text-lg font-bold">음성 실전 면접 시작</p>
+            <p className="text-indigo-300 text-xs mt-1">3~4개 질문 · 5~10분</p>
           </div>
         </div>
       </Link>
 
-      {/* Secondary CTA — 오늘의 질문 */}
-      <Link
-        href="/practice"
-        className="block w-full bg-slate-800 hover:bg-slate-700 active:bg-slate-900 rounded-2xl p-5 mb-4 transition-colors border border-slate-700"
-      >
-        <div className="flex items-center gap-4">
-          <div className="w-12 h-12 bg-slate-700 rounded-xl flex items-center justify-center text-2xl">
-            💬
-          </div>
-          <div>
-            <p className="text-slate-400 text-xs font-medium">오늘의 질문 연습</p>
-            <p className="text-white text-base font-semibold">
-              Tell me about a time you led a major AI initiative.
-            </p>
-          </div>
-        </div>
-      </Link>
-
-      {/* 오늘의 표현 카드 */}
-      <div className="mb-6">
-        {expressionData ? (
-          <ExpressionCard data={expressionData} />
-        ) : (
-          <div className="bg-slate-800 border border-slate-700 rounded-2xl px-5 py-4">
-            <ExpressionCardFetcher />
-          </div>
-        )}
+      {/* Daily warm-up */}
+      <div className="mb-4">
+        {patternSet ? <PatternSetCard data={patternSet} /> : <PatternSetFetcher />}
       </div>
 
       {/* Stats */}
@@ -165,6 +150,10 @@ export default async function HomePage() {
         <Link href="/notes" className="flex flex-col items-center gap-1 text-slate-500">
           <span className="text-xl">📓</span>
           <span className="text-xs">답변 노트</span>
+        </Link>
+        <Link href="/stats" className="flex flex-col items-center gap-1 text-slate-500">
+          <span className="text-xl">📊</span>
+          <span className="text-xs">통계</span>
         </Link>
       </nav>
     </main>

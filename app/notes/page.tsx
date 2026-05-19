@@ -16,6 +16,9 @@ export default async function NotesPage() {
         <Link href="/" className="text-slate-400 text-2xl leading-none">
           ←
         </Link>
+        <div className="w-11 h-11 rounded-2xl bg-indigo-500/15 border border-indigo-500/30 flex items-center justify-center text-2xl shrink-0">
+          📓
+        </div>
         <div>
           <h1 className="text-white font-bold text-lg">답변 노트</h1>
           <p className="text-slate-500 text-xs">총 {notes.length}개</p>
@@ -43,6 +46,10 @@ export default async function NotesPage() {
         <Link href="/notes" className="flex flex-col items-center gap-1 text-indigo-400">
           <span className="text-xl">📓</span>
           <span className="text-xs">답변 노트</span>
+        </Link>
+        <Link href="/stats" className="flex flex-col items-center gap-1 text-slate-500">
+          <span className="text-xl">📊</span>
+          <span className="text-xs">통계</span>
         </Link>
       </nav>
     </main>

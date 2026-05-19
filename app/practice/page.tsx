@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Suspense } from "react";
+import type { DailyPatternSet } from "@/lib/pattern-set";
 
 type Stage = "loading" | "idle" | "recording" | "transcribing" | "feedback";
 
@@ -21,6 +22,7 @@ interface Feedback {
   feedbackKo: string;
   improvedAnswerEn: string;
   keyExpressions: string[];
+  patternUsageKo?: string;
 }
 
 const SCORE_LABELS = [
@@ -51,10 +53,12 @@ function ScoreBar({ score, label }: { score: number; label: string }) {
 
 function PracticeContent() {
   const searchParams = useSearchParams();
-  const mode = searchParams.get("mode") ?? "daily";
+  const source = searchParams.get("source") ?? "pattern";
+  const isPatternPractice = source === "pattern";
 
   const [stage, setStage] = useState<Stage>("loading");
   const [question, setQuestion] = useState<DailyQuestion | null>(null);
+  const [patternSet, setPatternSet] = useState<DailyPatternSet | null>(null);
   const [transcript, setTranscript] = useState("");
   const [feedback, setFeedback] = useState<Feedback | null>(null);
   const [recordingSeconds, setRecordingSeconds] = useState(0);
@@ -66,14 +70,26 @@ function PracticeContent() {
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
-    fetch("/api/questions/daily")
+    const endpoint = isPatternPractice ? "/api/patterns/daily" : "/api/questions/daily";
+    fetch(endpoint)
       .then((r) => r.json())
-      .then((q) => {
-        setQuestion(q);
+      .then((data) => {
+        if (data.error) throw new Error(data.error);
+        if (isPatternPractice) {
+          const set = data as DailyPatternSet;
+          setPatternSet(set);
+          setQuestion({
+            question: set.exercise.question,
+            category: "career",
+            hint: `${set.exercise.structure.map((step) => step.label).join(" → ")} 구조로 30초 안에 말해보세요.`,
+          });
+        } else {
+          setQuestion(data);
+        }
         setStage("idle");
       })
       .catch(() => setError("질문을 불러오지 못했습니다. 잠시 후 다시 시도해주세요."));
-  }, []);
+  }, [isPatternPractice]);
 
   const startRecording = useCallback(async () => {
     setError("");
@@ -113,13 +129,30 @@ function PracticeContent() {
 
       setStage("transcribing");
       try {
+        // 세션을 먼저 생성해서 피드백 저장에 sessionId를 연결
+        const sessionRes = await fetch("/api/sessions", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ mode: "daily" }),
+        });
+        const session = await sessionRes.json();
+        const sessionId: number = session.id;
+
         const form = new FormData();
         form.append("audio", blob);
         const tRes = await fetch("/api/transcribe", { method: "POST", body: form });
+        if (!tRes.ok) {
+          throw new Error("음성 인식에 실패했습니다.");
+        }
         const { transcript: text } = await tRes.json();
         setTranscript(text ?? "");
 
         if (!text?.trim()) {
+          fetch("/api/sessions", {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ id: sessionId, status: "abandoned", endedAt: new Date().toISOString() }),
+          });
           setError("음성이 인식되지 않았습니다. 다시 시도해 주세요.");
           setStage("idle");
           return;
@@ -132,30 +165,23 @@ function PracticeContent() {
             question: question?.question,
             transcript: text,
             category: question?.category,
+            patternSet,
+            sessionId,
           }),
         });
+        if (!fRes.ok) {
+          throw new Error("피드백 생성에 실패했습니다.");
+        }
         const fb = await fRes.json();
         setFeedback(fb);
         setStage("feedback");
 
-        // Record completed session for home screen stats
-        await fetch("/api/sessions", {
-          method: "POST",
+        // 세션 완료 처리 (fire and forget)
+        fetch("/api/sessions", {
+          method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ mode: "daily" }),
-        }).then((r) =>
-          r.json().then((session) =>
-            fetch("/api/sessions", {
-              method: "PATCH",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                id: session.id,
-                status: "completed",
-                endedAt: new Date().toISOString(),
-              }),
-            })
-          )
-        );
+          body: JSON.stringify({ id: sessionId, status: "completed", endedAt: new Date().toISOString() }),
+        });
       } catch {
         setError("처리 중 오류가 발생했습니다. 다시 시도해 주세요.");
         setStage("idle");
@@ -163,7 +189,7 @@ function PracticeContent() {
     };
 
     mediaRecorderRef.current.stop();
-  }, [question]);
+  }, [patternSet, question]);
 
   function retry() {
     setTranscript("");
@@ -199,14 +225,20 @@ function PracticeContent() {
         <Link href="/" className="text-slate-400 text-2xl leading-none">
           ←
         </Link>
+        <div className="w-11 h-11 rounded-2xl bg-violet-500/15 border border-violet-500/30 flex items-center justify-center text-2xl shrink-0">
+          🎙️
+        </div>
         <div>
-          <p className="text-slate-400 text-xs">오늘의 질문 연습</p>
+          <p className="text-slate-400 text-xs">
+            {isPatternPractice ? "패턴 기반 질문 연습" : "오늘의 질문 연습"}
+          </p>
           <h1 className="text-white font-bold text-base leading-tight">
-            {question?.category === "intro" && "자기소개"}
-            {question?.category === "career" && "경력 설명"}
-            {question?.category === "leadership" && "리더십"}
-            {question?.category === "tech" && "기술 프로젝트"}
-            {question?.category === "failure" && "실패/갈등"}
+            {isPatternPractice && "30초 답변 워밍업"}
+            {!isPatternPractice && question?.category === "intro" && "자기소개"}
+            {!isPatternPractice && question?.category === "career" && "경력 설명"}
+            {!isPatternPractice && question?.category === "leadership" && "리더십"}
+            {!isPatternPractice && question?.category === "tech" && "기술 프로젝트"}
+            {!isPatternPractice && question?.category === "failure" && "실패/갈등"}
             {!question?.category && "로딩 중..."}
           </h1>
         </div>
@@ -229,6 +261,33 @@ function PracticeContent() {
               💡 {question.hint}
             </p>
           )}
+        </div>
+      )}
+
+      {patternSet && (stage === "idle" || stage === "recording") && (
+        <div className="bg-indigo-950 border border-indigo-800 rounded-2xl p-5 mb-4">
+          <div className="flex items-center justify-between gap-3 mb-3">
+            <div>
+              <p className="text-indigo-300 text-xs font-medium">오늘 써볼 답변 프레임</p>
+              <p className="text-white text-sm font-semibold mt-0.5">{patternSet.topic}</p>
+            </div>
+            <Link href="/patterns" className="text-indigo-300 text-xs shrink-0">
+              전체 보기
+            </Link>
+          </div>
+          <div className="flex flex-col gap-2">
+            {patternSet.exercise.structure.map((step) => (
+              <p key={step.label} className="text-slate-100 text-sm leading-relaxed">
+                <span className="text-indigo-300 text-xs font-semibold mr-2">
+                  {step.label}
+                </span>{" "}
+                {step.sentence}
+              </p>
+            ))}
+          </div>
+          <p className="text-slate-400 text-xs leading-relaxed mt-3 border-t border-indigo-800 pt-3">
+            {patternSet.miniFocusKo}
+          </p>
         </div>
       )}
 
@@ -257,6 +316,11 @@ function PracticeContent() {
           <div className="bg-slate-800 border border-slate-700 rounded-2xl p-5">
             <p className="text-slate-300 text-sm font-semibold mb-3">코칭 피드백</p>
             <p className="text-slate-200 text-sm leading-relaxed">{feedback.feedbackKo}</p>
+            {feedback.patternUsageKo && (
+              <p className="text-amber-200 text-xs leading-relaxed mt-3 border-t border-slate-700 pt-3">
+                {feedback.patternUsageKo}
+              </p>
+            )}
           </div>
 
           {/* Improved answer */}
@@ -274,7 +338,7 @@ function PracticeContent() {
                   key={i}
                   className="bg-slate-700 rounded-xl px-4 py-3 text-white text-sm"
                 >
-                  "{expr}"
+                  {expr}
                 </div>
               ))}
             </div>
@@ -305,7 +369,7 @@ function PracticeContent() {
 
       {/* Mic area */}
       {(stage === "idle" || stage === "recording") && (
-        <div className="flex flex-col items-center gap-5 mt-4">
+        <div className="sticky bottom-0 -mx-4 flex flex-col items-center gap-4 mt-4 bg-slate-950/95 px-4 pb-6 pt-4 backdrop-blur">
           {stage === "recording" && (
             <div className="flex items-center gap-2">
               <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { dailyPatterns, profile } from "@/lib/db/schema";
 import { and, eq } from "drizzle-orm";
+import { getKstDate } from "@/lib/pattern-set";
 
 const CATEGORIES = ["intro", "career", "leadership", "tech", "failure"] as const;
 
@@ -14,7 +15,7 @@ function todayCategory() {
 }
 
 export async function GET() {
-  const today = new Date().toISOString().slice(0, 10);
+  const today = getKstDate();
 
   const cached = await db
     .select()
@@ -73,6 +74,11 @@ The question must be in English. The hint must be in Korean.`,
       temperature: 0.8,
     }),
   });
+
+  if (!res.ok) {
+    console.error("daily question generation failed", await res.text());
+    return NextResponse.json({ error: "Failed to generate daily question" }, { status: res.status });
+  }
 
   const data = await res.json();
   const content = JSON.parse(data.choices[0].message.content);
