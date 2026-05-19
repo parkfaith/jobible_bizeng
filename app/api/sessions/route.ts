@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { practiceSessions, practiceTurns, feedbacks } from "@/lib/db/schema";
+import { practiceSessions } from "@/lib/db/schema";
 import { desc, eq } from "drizzle-orm";
 
 export async function GET() {

@@ -1,6 +1,12 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { profile } from "@/lib/db/schema";
+import { dailyPatterns, profile } from "@/lib/db/schema";
+import { and, eq } from "drizzle-orm";
+import {
+  DAILY_PATTERN_SET_TYPE,
+  getKstDate,
+  type DailyPatternSet,
+} from "@/lib/pattern-set";
 
 export async function POST() {
   const profiles = await db.select().from(profile).limit(1);
@@ -10,9 +16,31 @@ export async function POST() {
     ? `The candidate is targeting: ${userProfile.targetPosition}. Current role: ${userProfile.currentRole} with ${userProfile.yearsExp} years of experience. Their main concern: "${userProfile.topConcern}".`
     : "The candidate is a senior AI/IT leader with 20+ years experience targeting a Director-level role at a global company.";
 
+  const today = getKstDate();
+  const patternRows = await db
+    .select()
+    .from(dailyPatterns)
+    .where(and(eq(dailyPatterns.date, today), eq(dailyPatterns.patternType, DAILY_PATTERN_SET_TYPE)))
+    .limit(1);
+  const patternSet = patternRows[0]
+    ? (JSON.parse(patternRows[0].content) as DailyPatternSet)
+    : null;
+  const patternCtx = patternSet
+    ? `Today's interview focus:
+- Topic: ${patternSet.topic}
+- Opening question theme: ${patternSet.exercise.question}
+- Useful answer frame: ${patternSet.exercise.structure
+        .map((step) => `${step.label}: ${step.sentence}`)
+        .join(" | ")}
+
+Use this topic as the main thread of the interview. Ask realistic follow-up questions around this focus.`
+    : "No daily pattern set is available, so use a general senior AI leadership interview flow.";
+
   const instructions = `You are a rigorous interviewer at a global tech company interviewing a senior Korean AI/IT leader for a foreign company.
 
 ${profileCtx}
+
+${patternCtx}
 
 Your interviewing style:
 - Professional and direct. Not overly warm. Real interview energy.
@@ -21,35 +49,55 @@ Your interviewing style:
 - Do NOT give feedback or coaching during the interview. Stay in interviewer mode only.
 - Speak in clear, moderately-paced English so the candidate can follow.
 
-Interview structure (5–7 questions total):
-1. Brief greeting + self-introduction question
-2. Career background / major achievement
-3. Leadership decision or team challenge
-4. Technical AI/ML project and its business impact
-5. Failure, conflict, or a difficult situation
-6. Optional follow-up based on answers
-7. Closing: "That's all my questions. Do you have anything you'd like to ask me?"
+Interview structure:
+- Keep the session short: 5–10 minutes total.
+- Ask 3–4 questions total.
+- Start with the daily focus topic, not a generic long self-introduction.
+- Include 1 natural follow-up question based on the candidate's answer.
+- End with a concise closing when the final question is complete.
 
-Start immediately with a natural greeting and your first question. Do not announce what you're doing.`;
+When the client asks you to begin, start with a brief greeting and the first question. Do not announce the internal structure.`;
 
-  const res = await fetch("https://api.openai.com/v1/realtime/sessions", {
+  const res = await fetch("https://api.openai.com/v1/realtime/client_secrets", {
     method: "POST",
     headers: {
       Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      model: "gpt-4o-realtime-preview-2024-12-17",
-      voice: "alloy",
-      instructions,
-      turn_detection: { type: "server_vad" },
-      input_audio_transcription: { model: "whisper-1" },
+      session: {
+        type: "realtime",
+        model: process.env.OPENAI_REALTIME_MODEL ?? "gpt-realtime",
+        instructions,
+        output_modalities: ["audio"],
+        audio: {
+          input: {
+            transcription: {
+              model: "gpt-4o-transcribe",
+              language: "en",
+            },
+            turn_detection: {
+              type: "server_vad",
+              silence_duration_ms: 800,
+              create_response: true,
+              interrupt_response: true,
+            },
+          },
+          output: {
+            voice: "marin",
+            speed: 0.95,
+          },
+        },
+      },
     }),
   });
 
   if (!res.ok) {
-    const error = await res.text();
-    return NextResponse.json({ error }, { status: res.status });
+    console.error("Realtime client secret request failed", await res.text());
+    return NextResponse.json(
+      { error: "Failed to create realtime session" },
+      { status: res.status }
+    );
   }
 
   const data = await res.json();

@@ -1,0 +1,63 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <radialGradient id="bgGlow" cx="50%" cy="42%" r="70%">
+      <stop offset="0%" stop-color="#3154D4"/>
+      <stop offset="48%" stop-color="#132451"/>
+      <stop offset="100%" stop-color="#07111F"/>
+    </radialGradient>
+    <radialGradient id="goldGlow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#FFE9A8"/>
+      <stop offset="70%" stop-color="#D8A842" stop-opacity="0.45"/>
+      <stop offset="100%" stop-color="#D8A842" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="bookGold" x1="276" y1="392" x2="760" y2="694" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFF4C5"/>
+      <stop offset="0.45" stop-color="#E2B34B"/>
+      <stop offset="1" stop-color="#A96F24"/>
+    </linearGradient>
+    <linearGradient id="micSilver" x1="440" y1="296" x2="592" y2="590" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFFFFF"/>
+      <stop offset="0.42" stop-color="#C9D7FF"/>
+      <stop offset="1" stop-color="#7694E6"/>
+    </linearGradient>
+    <filter id="softShadow" x="124" y="136" width="776" height="752" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="34" stdDeviation="42" flood-color="#000000" flood-opacity="0.38"/>
+    </filter>
+  </defs>
+
+  <rect x="82" y="82" width="860" height="860" rx="210" fill="url(#bgGlow)"/>
+  <rect x="82" y="82" width="860" height="860" rx="210" stroke="#365BBD" stroke-opacity="0.35" stroke-width="12"/>
+  <circle cx="512" cy="512" r="330" fill="url(#goldGlow)" opacity="0.85"/>
+
+  <g opacity="0.9">
+    <path d="M214 382C322 276 446 236 581 254" stroke="#E8C66A" stroke-opacity="0.28" stroke-width="8" stroke-linecap="round"/>
+    <path d="M244 688C367 772 523 786 690 696" stroke="#E8C66A" stroke-opacity="0.22" stroke-width="8" stroke-linecap="round"/>
+    <path d="M744 310C808 382 826 475 792 590" stroke="#8EA8FF" stroke-opacity="0.22" stroke-width="8" stroke-linecap="round"/>
+  </g>
+
+  <g filter="url(#softShadow)">
+    <path d="M512 632C440 570 352 546 256 560V384C352 370 440 398 512 460V632Z" fill="url(#bookGold)"/>
+    <path d="M512 632C584 570 672 546 768 560V384C672 370 584 398 512 460V632Z" fill="url(#bookGold)"/>
+    <path d="M512 459V650" stroke="#FFF3C0" stroke-width="14" stroke-linecap="round"/>
+    <path d="M292 430C360 424 420 443 474 487" stroke="#6A471B" stroke-opacity="0.55" stroke-width="13" stroke-linecap="round"/>
+    <path d="M292 488C366 484 425 501 474 540" stroke="#6A471B" stroke-opacity="0.45" stroke-width="13" stroke-linecap="round"/>
+    <path d="M730 430C662 424 602 443 548 487" stroke="#6A471B" stroke-opacity="0.55" stroke-width="13" stroke-linecap="round"/>
+    <path d="M730 488C656 484 597 501 548 540" stroke="#6A471B" stroke-opacity="0.45" stroke-width="13" stroke-linecap="round"/>
+
+    <rect x="438" y="260" width="148" height="258" rx="74" fill="url(#micSilver)"/>
+    <rect x="474" y="305" width="76" height="156" rx="38" fill="#12224C" fill-opacity="0.55"/>
+    <path d="M410 430C410 486 455 532 512 532C569 532 614 486 614 430" stroke="#FFE9A8" stroke-width="28" stroke-linecap="round"/>
+    <path d="M512 532V616" stroke="#FFE9A8" stroke-width="28" stroke-linecap="round"/>
+    <path d="M456 616H568" stroke="#FFE9A8" stroke-width="28" stroke-linecap="round"/>
+  </g>
+
+  <g opacity="0.95">
+    <circle cx="324" cy="296" r="9" fill="#FFF0B8"/>
+    <circle cx="704" cy="338" r="7" fill="#FFF0B8"/>
+    <circle cx="756" cy="652" r="8" fill="#C9D7FF"/>
+    <path d="M674 248L686 286L724 298L686 310L674 348L662 310L624 298L662 286L674 248Z" fill="#FFE9A8"/>
+    <path d="M314 630L323 658L351 667L323 676L314 704L305 676L277 667L305 658L314 630Z" fill="#8EA8FF"/>
+  </g>
+
+  <text x="512" y="800" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="74" font-weight="800" fill="#F8FAFC" letter-spacing="-1">BizEng</text>
+</svg>

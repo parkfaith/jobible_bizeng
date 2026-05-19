@@ -86,7 +86,11 @@ Rules:
   });
 
   if (!res.ok) {
-    return NextResponse.json({ error: await res.text() }, { status: res.status });
+    console.error("daily expression generation failed", await res.text());
+    return NextResponse.json(
+      { error: "Failed to generate daily expression" },
+      { status: res.status }
+    );
   }
 
   const data = await res.json();

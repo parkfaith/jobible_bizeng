@@ -8,6 +8,10 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "No audio provided" }, { status: 400 });
   }
 
+  if (audio.size > 8 * 1024 * 1024) {
+    return NextResponse.json({ error: "Audio file is too large" }, { status: 413 });
+  }
+
   const whisperForm = new FormData();
   // Whisper accepts webm, mp4, wav — browser MediaRecorder produces webm or mp4
   const ext = audio.type.includes("mp4") ? "mp4" : "webm";
@@ -22,8 +26,8 @@ export async function POST(req: Request) {
   });
 
   if (!res.ok) {
-    const error = await res.text();
-    return NextResponse.json({ error }, { status: res.status });
+    console.error("audio transcription failed", await res.text());
+    return NextResponse.json({ error: "Failed to transcribe audio" }, { status: res.status });
   }
 
   const data = await res.json();

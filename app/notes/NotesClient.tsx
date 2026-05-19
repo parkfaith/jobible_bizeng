@@ -102,12 +102,12 @@ export default function NotesClient({ initialNotes }: { initialNotes: Note[] }) 
   return (
     <>
       {/* Category tabs */}
-      <div className="flex gap-2 overflow-x-auto pb-2 mb-5 scrollbar-hide">
+      <div className="grid grid-cols-2 gap-2 mb-5">
         {CATEGORIES.map((cat) => (
           <button
             key={cat.key}
             onClick={() => setActiveCategory(cat.key)}
-            className={`shrink-0 px-4 py-2 rounded-full text-sm font-medium transition-colors ${
+            className={`min-h-10 px-3 py-2 rounded-xl text-sm font-medium transition-colors ${
               activeCategory === cat.key
                 ? "bg-indigo-600 text-white"
                 : "bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700"
@@ -235,7 +235,7 @@ export default function NotesClient({ initialNotes }: { initialNotes: Note[] }) 
                               />
                             ) : (
                               <div className="bg-slate-700 rounded-lg px-3 py-2 text-white text-sm">
-                                "{expr}"
+                                {expr}
                               </div>
                             )}
                           </div>

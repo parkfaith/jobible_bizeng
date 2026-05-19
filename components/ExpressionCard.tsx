@@ -80,7 +80,7 @@ export default function ExpressionCard({ data }: { data: ExpressionData }) {
               {data.examples.map((ex, i) => (
                 <div key={i} className="bg-slate-900 rounded-xl p-3">
                   <p className="text-slate-500 text-xs mb-1">{ex.situation}</p>
-                  <p className="text-white text-sm leading-relaxed">"{ex.sentence}"</p>
+                  <p className="text-white text-sm leading-relaxed">{ex.sentence}</p>
                 </div>
               ))}
             </div>
