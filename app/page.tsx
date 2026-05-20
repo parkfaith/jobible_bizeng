@@ -58,7 +58,7 @@ export default async function HomePage() {
   return (
     <main className="min-h-screen bg-slate-950 flex flex-col max-w-md mx-auto px-4 pt-8 pb-24">
       {/* Header */}
-      <div className="mb-6 flex items-start gap-3">
+      <div className="mb-6 flex items-center gap-3">
         <Image
           src="/icons/jobible-bizeng-logo.svg"
           alt="Jobible BizEng"
@@ -66,10 +66,9 @@ export default async function HomePage() {
           height={48}
           className="rounded-2xl shrink-0"
         />
-        <div className="min-w-0">
-          <p className="text-slate-400 text-sm">안녕하세요, Ryan</p>
-          <h1 className="text-2xl font-bold text-white mt-1">오늘도 면접 준비할게요</h1>
-          <p className="text-slate-500 text-xs mt-1">목표: {userProfile.targetPosition}</p>
+        <div>
+          <p className="text-white font-bold text-lg tracking-tight">Jobible BizEng</p>
+          <p className="text-slate-500 text-xs">AI 면접 코치</p>
         </div>
       </div>
 
