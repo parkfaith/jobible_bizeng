@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { redirect } from "next/navigation";
 
 export const dynamic = "force-dynamic";
@@ -55,7 +56,20 @@ export default async function HomePage() {
   };
 
   return (
-    <main className="min-h-screen bg-slate-950 flex flex-col max-w-md mx-auto px-4 pt-8 pb-24">
+    <main className="min-h-screen bg-slate-950 flex flex-col max-w-md mx-auto px-4 pt-6 pb-24">
+      {/* Brand Banner */}
+      <div className="flex flex-col items-center mb-6">
+        <Image
+          src="/icons/jobible-bizeng-logo.svg"
+          alt="Jobible BizEng"
+          width={72}
+          height={72}
+          className="rounded-2xl mb-2.5"
+        />
+        <p className="text-white font-bold text-base tracking-tight">Jobible BizEng</p>
+        <p className="text-slate-500 text-xs">AI 면접 코치</p>
+      </div>
+
       {/* Header */}
       <div className="mb-6 flex items-start gap-3">
         <div className="w-12 h-12 rounded-2xl bg-indigo-500/15 border border-indigo-500/30 flex items-center justify-center text-2xl shrink-0">
