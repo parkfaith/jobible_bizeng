@@ -331,6 +331,10 @@ export default async function StatsPage() {
           <span className="text-xl">📓</span>
           <span className="text-xs">답변 노트</span>
         </Link>
+        <Link href="/review" className="flex flex-col items-center gap-1 text-slate-500">
+          <span className="text-xl">🗓️</span>
+          <span className="text-xs">복습</span>
+        </Link>
         <Link href="/stats" className="flex flex-col items-center gap-1 text-indigo-400">
           <span className="text-xl">📊</span>
           <span className="text-xs">통계</span>
