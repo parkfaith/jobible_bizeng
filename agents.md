@@ -506,6 +506,96 @@ UX 기준:
 - `ChatGPT에 붙여넣기` 흐름은 앱 밖으로 사용자를 보내므로 기본 UX에서 제외한다.
 - 실전 면접 중에는 패턴세트를 직접 노출하지 않고, 면접 전 워밍업과 종료 후 피드백에만 연결한다.
 
+## 16. 배포 방향 — Vercel Hobby 1차 배포 판단 (2026-05-20)
+
+현재 판단은 `Vercel Hobby`에 1차 배포해도 된다는 쪽이다.  
+다만 무료 플랜의 개인/비상업 사용 제한과 함수 실행 시간/사용량 제한을 전제로 한다.
+
+### 1. Vercel Hobby로 가능한 이유
+
+- 앱은 Next.js App Router 기반이므로 Vercel 배포와 잘 맞는다.
+- DB는 Vercel 내부가 아니라 외부 Turso/libSQL을 사용한다.
+- OpenAI API 키, Turso 토큰, 앱 비밀번호는 Vercel 환경변수에만 둔다.
+- 핵심 음성 면접은 Vercel이 WebSocket 서버나 음성 스트림 중계 서버 역할을 하지 않는다.
+- `/api/realtime-token`은 OpenAI Realtime API용 ephemeral token만 발급한다.
+- 실제 WebRTC 음성 연결은 브라우저가 OpenAI Realtime API와 직접 연결한다.
+- 따라서 Vercel Functions가 WebSocket 서버를 지원하지 않는 제약에는 직접 걸리지 않는다.
+
+### 2. 주의할 점
+
+- Hobby 플랜은 개인/비상업 프로젝트용이다. 혼자 쓰는 MVP나 소규모 개인 테스트에는 적합하지만, 외부 사용자 대상 서비스나 유료화 단계에서는 Pro 전환을 검토한다.
+- OpenAI 호출이 들어가는 API 라우트는 응답 시간이 길어질 수 있다.
+- 특히 아래 라우트는 Vercel Function 시간 제한을 고려해야 한다.
+
+느릴 수 있는 라우트:
+
+- `app/api/patterns/daily/route.ts`
+- `app/api/feedback/route.ts`
+- `app/api/feedback/interview/route.ts`
+- `app/api/transcribe/route.ts`
+- `app/api/expressions/daily/route.ts`
+- `app/api/questions/daily/route.ts`
+
+권장:
+
+- 위 라우트에는 필요하면 `export const maxDuration = 60;`을 명시한다.
+- OpenAI API 원문 오류는 클라이언트에 그대로 노출하지 않는다.
+- 개인용 앱이라도 Vercel 사용량, OpenAI 사용량, Turso 사용량을 주기적으로 확인한다.
+
+### 3. Vercel 환경변수
+
+Vercel Project Settings > Environment Variables에 아래 값을 설정한다.
+
+- `TURSO_DATABASE_URL`
+- `TURSO_AUTH_TOKEN`
+- `OPENAI_API_KEY`
+- `OPENAI_TEXT_MODEL=gpt-4o`
+- `OPENAI_REALTIME_MODEL=gpt-realtime`
+- `APP_PASSWORD`
+- `SESSION_SECRET`
+- `ANTHROPIC_API_KEY`는 현재 미사용이며, 향후 콘텐츠 품질 비교 시에만 사용한다.
+
+### 4. Vercel 빌드 설정
+
+- Build Command: `npm run build`
+- 현재 `package.json`의 build 스크립트는 `next build --webpack`이다.
+- Next.js 16 기본 Turbopack 빌드는 PWA 플러그인의 Webpack 설정과 충돌할 수 있으므로 `--webpack`을 유지한다.
+- 개발 서버도 같은 이유로 `npm run dev`가 `next dev --webpack`을 사용한다.
+- `middleware.ts`는 사용하지 않는다. Next.js 16 경고 대응으로 인증 보호 로직은 `proxy.ts`에 둔다.
+
+### 5. 배포 후 필수 확인
+
+모바일 실제 기기, 특히 iPhone/Safari 또는 설치형 PWA에서 아래를 확인한다.
+
+1. 로그인
+2. 홈 로딩
+3. 오늘의 답변 패턴세트 생성
+4. 30초 답변 녹음
+5. OpenAI 전사
+6. 답변 피드백 생성
+7. 실전 면접 Realtime 연결
+8. 면접 종료 후 종합 피드백
+9. 답변 노트 저장
+10. 통계 화면 반영
+11. PWA 설치와 재접속
+
+### 6. 향후 전환 기준
+
+Vercel Hobby를 유지해도 되는 경우:
+
+- 개인용 MVP
+- 사용자 1명 또는 매우 소규모 지인 테스트
+- 비상업 사용
+- API 호출량이 낮고 사용량 모니터링이 가능한 상태
+
+Pro 또는 별도 백엔드를 검토해야 하는 경우:
+
+- 외부 사용자에게 공개
+- 유료화 또는 상업적 사용
+- OpenAI 피드백 생성이 60초 제한에 자주 걸림
+- 사용량 초과 또는 런타임 로그 부족으로 운영이 어려움
+- 서버 측 장시간 작업, 큐, 배치 작업, 오디오 파일 저장이 필요해짐
+
 이전 기획 방향:
 
 현재부터는 기획에서 기술 구현 준비 단계로 넘어간다.  
