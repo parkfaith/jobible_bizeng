@@ -56,25 +56,16 @@ export default async function HomePage() {
   };
 
   return (
-    <main className="min-h-screen bg-slate-950 flex flex-col max-w-md mx-auto px-4 pt-6 pb-24">
-      {/* Brand Banner */}
-      <div className="flex flex-col items-center mb-6">
+    <main className="min-h-screen bg-slate-950 flex flex-col max-w-md mx-auto px-4 pt-8 pb-24">
+      {/* Header */}
+      <div className="mb-6 flex items-start gap-3">
         <Image
           src="/icons/jobible-bizeng-logo.svg"
           alt="Jobible BizEng"
-          width={72}
-          height={72}
-          className="rounded-2xl mb-2.5"
+          width={48}
+          height={48}
+          className="rounded-2xl shrink-0"
         />
-        <p className="text-white font-bold text-base tracking-tight">Jobible BizEng</p>
-        <p className="text-slate-500 text-xs">AI 면접 코치</p>
-      </div>
-
-      {/* Header */}
-      <div className="mb-6 flex items-start gap-3">
-        <div className="w-12 h-12 rounded-2xl bg-indigo-500/15 border border-indigo-500/30 flex items-center justify-center text-2xl shrink-0">
-          🎯
-        </div>
         <div className="min-w-0">
           <p className="text-slate-400 text-sm">안녕하세요, Ryan</p>
           <h1 className="text-2xl font-bold text-white mt-1">오늘도 면접 준비할게요</h1>
