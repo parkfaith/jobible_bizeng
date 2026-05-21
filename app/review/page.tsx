@@ -2,7 +2,7 @@ import Link from "next/link";
 import { desc, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { dailyPatterns } from "@/lib/db/schema";
-import { DAILY_PATTERN_SET_TYPE, type DailyPatternSet } from "@/lib/pattern-set";
+import { DAILY_PATTERN_SET_TYPE, getKstDate, type DailyPatternSet } from "@/lib/pattern-set";
 
 export const dynamic = "force-dynamic";
 
@@ -26,7 +26,8 @@ export default async function ReviewPage() {
     data: JSON.parse(row.content) as DailyPatternSet,
   }));
   const dateSet = new Set(items.map((item) => item.date));
-  const monthDays = buildMonthDays(dateSet);
+  const todayKst = getKstDate();
+  const monthDays = buildMonthDays(dateSet, todayKst);
 
   return (
     <main className="min-h-screen bg-slate-950 flex flex-col max-w-md mx-auto px-4 pt-7 bottom-safe">
@@ -45,7 +46,7 @@ export default async function ReviewPage() {
 
       <section className="bg-slate-800 border border-slate-700 rounded-2xl p-4 mb-5">
         <div className="flex items-center justify-between mb-3">
-          <p className="text-white text-sm font-semibold">{formatMonth(new Date())}</p>
+          <p className="text-white text-sm font-semibold">{formatMonth(todayKst)}</p>
           <p className="text-slate-500 text-xs">저장 {items.length}일</p>
         </div>
         <div className="grid grid-cols-7 gap-1.5 mb-2">
@@ -154,10 +155,9 @@ export default async function ReviewPage() {
   );
 }
 
-function buildMonthDays(dateSet: Set<string>) {
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = now.getMonth();
+function buildMonthDays(dateSet: Set<string>, todayKst: string) {
+  const year = parseInt(todayKst.slice(0, 4), 10);
+  const month = parseInt(todayKst.slice(5, 7), 10) - 1;
   const firstDay = new Date(year, month, 1);
   const lastDay = new Date(year, month + 1, 0);
   const days: Array<{ date: string; label: number; hasPattern: boolean } | null> = [];
@@ -172,8 +172,9 @@ function buildMonthDays(dateSet: Set<string>) {
   return days;
 }
 
-function formatMonth(date: Date) {
-  return date.toLocaleDateString("ko-KR", { year: "numeric", month: "long" });
+function formatMonth(kstDateStr: string) {
+  const [year, month] = kstDateStr.split("-").map(Number);
+  return new Date(year, month - 1, 1).toLocaleDateString("ko-KR", { year: "numeric", month: "long" });
 }
 
 function formatDate(date: string) {

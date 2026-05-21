@@ -12,11 +12,16 @@ import {
 } from "@/lib/pattern-set";
 
 const TOPICS = [
-  "Risk Management + Stakeholder Communication",
-  "AI Project Impact + Executive Reporting",
-  "Leadership Decision + Cross-functional Alignment",
-  "Technical Trade-off + Business Outcome",
-  "Failure Recovery + Client Trust",
+  "Managing Ambiguity and Driving Alignment",
+  "Communicating Risk and Gaining Stakeholder Buy-in",
+  "Driving AI Impact and Reporting to Executives",
+  "Making Leadership Decisions Across Functions",
+  "Balancing Technical Trade-offs with Business Outcomes",
+  "Recovering from Failure and Rebuilding Trust",
+  "Defining Priorities Under Pressure",
+  "Leading Change in a Legacy Organization",
+  "Scaling AI from Pilot to Production",
+  "Influencing Without Authority",
 ] as const;
 
 function dayOfYearForKstDate(kstDate: string) {
@@ -71,10 +76,7 @@ async function generatePatternSet(): Promise<DailyPatternSet> {
           content: [
             {
               type: "input_text",
-              text: `Create a daily business English interview pattern set for a senior Korean AI/IT leader.
-
-Use ChatGPT-style substance: practical, interview-ready, and directly usable in a 30-second spoken answer.
-Use Claude-style organization: clean sections, concise Korean explanations, and one common Korean-speaker mistake section.
+              text: `Create a daily business English interview pattern set for a senior Korean AI/IT leader preparing for a global company interview.
 
 Candidate context:
 - Target position: ${targetPosition}
@@ -83,18 +85,45 @@ Candidate context:
 - Main concern: ${topConcern}
 - Representative projects: ${JSON.stringify(projects)}
 
-Content rules:
-- Today's topic is "${topic}".
-- The audience must be PM / AI global company communication or senior AI leadership interview.
-- patterns must be exactly 3 full English sentences, not fragments.
-- The 3 pattern sentences should combine into a natural 30-second answer frame.
-- shadowing.sentence must be one of the pattern sentences.
-- shadowing.links must be connected-speech chunks from the shadowing sentence, such as "kept-stakeholders" or "throughout-the-project".
-- shadowing.links must never be URLs, video links, source links, or web references.
-- exercise.question must be an English interview question.
-- exercise.structure must be exactly 4 steps, similar to Risk / Communication / Adjustment / Result.
-- Korean explanations should be direct and useful, not cute or academic.
-- Avoid generic school-English examples. Keep it senior, calm, and credible.`,
+Today's topic: "${topic}"
+Audience: PM / AI global company interview panel, senior AI leadership hiring committee
+
+=== FIELD-BY-FIELD INSTRUCTIONS ===
+
+topic: Use the exact topic string provided above.
+
+audience: One line — who this pattern set is for (e.g. "For AI Director / Global Company Senior Interview").
+
+patterns (exactly 3):
+- sentence: A complete, interview-ready English sentence. Not a fragment. Senior, calm, credible tone.
+- meaningKo: Korean translation. Direct and natural, not academic.
+- usagePointKo: Exactly 3 specific real-world situations as a short comma-separated list (e.g. "요구사항이 불명확한 프로젝트, AI 파일럿 기획 단계, 이해관계자 보고 회의"). Be concrete — avoid vague descriptions like "다양한 상황에서".
+
+The 3 sentences must connect into a natural 30-second spoken answer when read in sequence.
+
+mistakes (1–2 items):
+- wrong: What Korean speakers typically say (incorrect or unnatural).
+- correct: The better English alternative.
+- tipKo: One concise Korean sentence explaining why it sounds more natural.
+
+shadowing:
+- sentence: Pick the most phonetically challenging of the 3 pattern sentences.
+- links: 2–3 connected-speech chunks from that sentence showing natural linking (e.g. "worked-with-stakeholders", "clarify-priorities"). NEVER include URLs or web links.
+- tipKo: Rhythm and stress breakdown. Format strictly as:
+  "강세: [STRESSED-syl-la-bles 형식으로 표시] → 연음: [linked-words-example] → 핵심 단어: [word1, word2, word3]"
+  Example: "강세: I-WORKED-with-STAKE-hold-ers-to-CLAR-i-fy-pri-OR-i-ties → 연음: worked-with-stakeholders → 핵심 단어: stakeholders, clarify, priorities"
+
+exercise:
+- question: A realistic English interview question that would naturally elicit the 3 pattern sentences.
+- structure: Exactly 4 steps with these labels in order: Situation, Action, Execution, Result.
+  Each step's sentence should be directly usable as spoken English in the answer.
+
+miniFocusKo: A quick-drill instruction. Format: "위 3문장을 소리 내어 3번 읽으세요. 목표: [구체적인 수행 기준 — 예: 머뭇거림 없이 실제 프로젝트 경험처럼 자연스럽게]"
+
+=== STYLE RULES ===
+- No generic school-English. Every sentence must sound like a seasoned senior leader speaking in a real interview.
+- Korean explanations: direct and useful. Not cute, not encouraging, not academic.
+- All 3 pattern sentences must be independently usable AND work together as a sequence.`,
             },
           ],
         },

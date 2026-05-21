@@ -22,13 +22,19 @@
 ```
 app/
   page.tsx                    # 홈 (force-dynamic, 서버 컴포넌트)
+  loading.tsx                 # Next.js 라우트 전환 중 전체 로딩 화면
+  layout.tsx                  # 루트 레이아웃 — RouteProgress 전역 포함
   onboarding/page.tsx         # 4단계 프로필 입력 (클라이언트)
+  login/page.tsx              # 비밀번호 로그인 + PWA 설치 안내 (클라이언트)
   practice/
     page.tsx                  # 오늘의 질문 연습 (클라이언트)
     interview/page.tsx        # 실전 면접 대화 WebRTC (클라이언트)
   notes/
     page.tsx                  # 답변 노트 (force-dynamic, 서버 컴포넌트)
     NotesClient.tsx           # 필터·수정·삭제 (클라이언트)
+  patterns/page.tsx           # 오늘의 답변 패턴세트 상세·수정·다시 생성 (클라이언트)
+  review/page.tsx             # 날짜별 패턴 복습 캘린더 + 최근 패턴 목록 (서버 컴포넌트)
+  stats/page.tsx              # 성장 통계 — 연습 횟수·점수 추이·면접 피드백 (서버 컴포넌트)
   api/
     profile/route.ts          # GET, POST (upsert)
     sessions/route.ts         # GET, POST, PATCH
@@ -38,12 +44,21 @@ app/
     feedback/interview/route.ts  # POST — 실전 면접 종합 피드백
     realtime-token/route.ts   # POST — ephemeral token 발급
     notes/route.ts            # GET, POST, PATCH, DELETE
-    expressions/daily/route.ts  # GET — GPT-4o 생성 + Turso 일별 캐시, PATCH — 수동 수정
-  expressions/page.tsx        # 표현 카드 전체 보기 + 수정 UI (클라이언트)
+    patterns/
+      daily/route.ts          # GET — 패턴세트 조회/생성, POST — 다시 생성, PATCH — 수동 수정
+      history/route.ts        # GET — 날짜별 저장 패턴 목록
+    expressions/daily/route.ts  # GET — GPT-4o 생성 + Turso 일별 캐시, PATCH — 수동 수정 (레거시)
+    auth/login/route.ts       # POST — 비밀번호 인증
+  expressions/page.tsx        # 표현 카드 전체 보기 + 수정 UI (클라이언트, 레거시)
 components/
-  ExpressionCard.tsx          # 홈 삽입용 접힌 카드 (클라이언트)
-  ExpressionCardFetcher.tsx   # 캐시 없을 때 클라이언트에서 API 호출
+  RouteProgress.tsx           # 화면 전환 중 상단 진행바 + "화면을 여는 중..." (클라이언트)
+  PwaInstallPrompt.tsx        # PWA 설치 안내 — Chrome/Android 설치 버튼, iOS 홈 화면 추가 안내
+  PatternSetCard.tsx          # 홈 삽입용 패턴세트 요약 카드 (클라이언트)
+  PatternSetFetcher.tsx       # 캐시 없을 때 클라이언트에서 패턴 API 호출
+  ExpressionCard.tsx          # 홈 삽입용 접힌 표현 카드 (클라이언트, 레거시)
+  ExpressionCardFetcher.tsx   # 캐시 없을 때 클라이언트에서 표현 API 호출 (레거시)
 lib/
+  pattern-set.ts              # DailyPatternSet 타입, getKstDate(), DAILY_PATTERN_SET_SCHEMA
   db/
     schema.ts                 # 6개 테이블 정의
     index.ts                  # Turso 클라이언트 + Drizzle
@@ -90,7 +105,7 @@ npm run db:studio    # Drizzle Studio (DB 브라우저)
 | `answer_notes` | 최종 암기용 답변 + 핵심 표현 |
 | `daily_patterns` | 오늘의 질문·표현 캐시 — `patternType`으로 구분 (`daily_question` / `daily_expression`) |
 
-## 현재 상태 (2026-05-19)
+## 현재 상태 (2026-05-21)
 
-MVP 4개 Phase 전체 완료 + 오늘의 표현 카드(Daily Expression Card) 완료. 배포 전 단계.  
-다음 작업 후보: 프로필 수정 화면, Vercel 배포, iOS 테스트.
+MVP 전체 완료 + 오늘의 답변 패턴세트 + PWA 모바일 UX 보강 완료. GitHub 푸시 완료.  
+다음 작업 후보: Vercel 배포, iOS 실기기 테스트, 프로필 수정 화면.
