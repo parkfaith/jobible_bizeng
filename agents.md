@@ -702,7 +702,7 @@ Pro 또는 별도 백엔드를 검토해야 하는 경우:
 - `appleWebApp.statusBarStyle`은 `black-translucent`에서 `black`으로 변경했다.
 - 모바일 터치 안정성을 위해 주요 링크, 하단 내비게이션, 뒤로가기, 작은 액션 버튼에 최소 44px 터치 영역을 적용했다.
 - 하단 고정 내비게이션은 safe-area bottom을 반영하도록 변경했다.
-- 홈에 PWA 설치 안내 컴포넌트를 추가했다.
+- 로그인 화면에 PWA 설치 안내 컴포넌트를 추가했다.
   - Chrome/Android처럼 `beforeinstallprompt`를 지원하면 `설치` 버튼을 보여준다.
   - iOS Safari처럼 설치 버튼 API가 없는 경우에는 공유 버튼 → 홈 화면에 추가 안내를 보여준다.
 - `/api/patterns/daily`는 브라우저/PWA 캐시가 어제 응답을 재사용하지 않도록 `Cache-Control: no-store`를 명시한다.
@@ -745,3 +745,29 @@ Pro 또는 별도 백엔드를 검토해야 하는 경우:
 - 비정상적으로 오래 남는 경우를 막기 위해 fallback timeout을 둔다.
 - `app/loading.tsx`를 추가해 Next.js 라우트 로딩 중 전체 로딩 화면을 표시한다.
 - `app/layout.tsx`에 `RouteProgress`를 전역으로 연결했다.
+
+## 19. 현재 인계 상태 (2026-05-21)
+
+집/다른 컴퓨터에서 이어갈 때 기준:
+
+- 현재 원격 `master` 최신 커밋은 `6608d2b feat: show loading feedback during navigation`이다.
+- Vercel 자동배포 대상 커밋은 모두 GitHub에 푸시되어 있다.
+- 이 컴퓨터의 추적 파일 작업 트리는 정리된 상태여야 한다.
+- `linkedin-assets/`는 앱 코드가 아니라 로컬 생성 마케팅/LinkedIn용 이미지와 HTML 초안이므로 Git 추적에서 제외한다.
+
+최근 배포에 포함된 개선:
+
+- 로그인 첫 화면 로고를 `public/icons/jobible-bizeng-logo.svg`로 교체했다.
+- PWA 설치 안내는 로그인 화면에서 먼저 보이도록 이동했다.
+- iOS 설치형 PWA 상태바 침범을 safe-area overlay로 보정했다.
+- 모바일 링크/버튼 터치 영역을 확대했다.
+- 화면 전환 중 상단 진행바와 로딩 안내를 추가했다.
+- 오늘의 패턴 API는 KST 기준 날짜와 `no-store` 캐시 정책으로 보정했다.
+
+집에서 이어서 확인할 것:
+
+- `git pull origin master`
+- `npm install`이 필요한 환경이면 먼저 실행
+- `.env.local`이 없으면 `.env.example` 기준으로 생성
+- `npm run dev`
+- 모바일/PWA에서 확인할 항목: 로그인 화면 로고, 로그인 전 설치 안내, 상단 상태바 침범 여부, 화면 전환 로딩 표시, 오늘 패턴 날짜 갱신
