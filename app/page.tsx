@@ -8,7 +8,6 @@ import { profile, practiceSessions, answerNotes, dailyPatterns } from "@/lib/db/
 import { and, desc, eq, gte, sql } from "drizzle-orm";
 import PatternSetCard from "@/components/PatternSetCard";
 import PatternSetFetcher from "@/components/PatternSetFetcher";
-import PwaInstallPrompt from "@/components/PwaInstallPrompt";
 import {
   DAILY_PATTERN_SET_TYPE,
   getKstDate,
@@ -87,9 +86,6 @@ export default async function HomePage() {
           </div>
         </div>
       </Link>
-
-      <PwaInstallPrompt />
-
       {/* Daily warm-up */}
       <div className="mb-4">
         {patternSet ? <PatternSetCard data={patternSet} /> : <PatternSetFetcher />}

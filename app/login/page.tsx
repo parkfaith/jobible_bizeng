@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
+import PwaInstallPrompt from "@/components/PwaInstallPrompt";
 
 export default function LoginPage() {
   const [password, setPassword] = useState("");
@@ -36,7 +37,7 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="min-h-screen bg-slate-950 flex flex-col items-center justify-center px-6">
+    <main className="min-h-screen bg-slate-950 flex flex-col items-center justify-center px-6 py-8">
       <div className="w-full max-w-sm">
         <div className="flex flex-col items-center mb-8">
           <Image
@@ -50,6 +51,8 @@ export default function LoginPage() {
           <h1 className="text-white text-2xl font-bold">Jobible BizEng</h1>
           <p className="text-slate-500 text-sm mt-1">영어 면접 코치</p>
         </div>
+
+        <PwaInstallPrompt />
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <div>
