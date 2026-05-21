@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Geist } from "next/font/google";
+import RouteProgress from "@/components/RouteProgress";
 import "./globals.css";
 
 const geist = Geist({ subsets: ["latin"], variable: "--font-geist" });
@@ -36,6 +37,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="ko" className={`${geist.variable} h-full`}>
       <body className="min-h-screen bg-slate-950 text-slate-100 font-sans antialiased">
+        <RouteProgress />
         {children}
       </body>
     </html>
