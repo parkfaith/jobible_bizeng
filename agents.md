@@ -746,28 +746,62 @@ Pro 또는 별도 백엔드를 검토해야 하는 경우:
 - `app/loading.tsx`를 추가해 Next.js 라우트 로딩 중 전체 로딩 화면을 표시한다.
 - `app/layout.tsx`에 `RouteProgress`를 전역으로 연결했다.
 
-## 19. 현재 인계 상태 (2026-05-21)
+## 19. 현재 인계 상태 (2026-05-21, 최종 업데이트)
 
-집/다른 컴퓨터에서 이어갈 때 기준:
+다른 컴퓨터에서 이어갈 때 기준:
 
-- 현재 원격 `master` 최신 커밋은 `6608d2b feat: show loading feedback during navigation`이다.
-- Vercel 자동배포 대상 커밋은 모두 GitHub에 푸시되어 있다.
-- 이 컴퓨터의 추적 파일 작업 트리는 정리된 상태여야 한다.
-- `linkedin-assets/`는 앱 코드가 아니라 로컬 생성 마케팅/LinkedIn용 이미지와 HTML 초안이므로 Git 추적에서 제외한다.
+- 현재 원격 `master` 최신 커밋: `b5d774d improve pattern generation quality and fix review timezone bug`
+- GitHub 푸시 완료. Vercel 자동배포가 이 커밋 기준으로 트리거되어 있다.
+- 작업 트리는 clean 상태다 (`git status` 확인).
+- `linkedin-assets/`는 로컬 마케팅/LinkedIn용 파일이므로 Git 추적 제외 상태 유지.
 
-최근 배포에 포함된 개선:
+### 오늘(2026-05-21) 한 작업 전체 요약
 
-- 로그인 첫 화면 로고를 `public/icons/jobible-bizeng-logo.svg`로 교체했다.
-- PWA 설치 안내는 로그인 화면에서 먼저 보이도록 이동했다.
-- iOS 설치형 PWA 상태바 침범을 safe-area overlay로 보정했다.
-- 모바일 링크/버튼 터치 영역을 확대했다.
-- 화면 전환 중 상단 진행바와 로딩 안내를 추가했다.
-- 오늘의 패턴 API는 KST 기준 날짜와 `no-store` 캐시 정책으로 보정했다.
+**오전/회사 작업 (커밋 5개)**
 
-집에서 이어서 확인할 것:
+1. iOS 설치형 PWA 상태바 safe-area overlay 보정 (`body::before` fixed)
+2. 로그인 화면에 Jobible BizEng 로고 교체
+3. PWA 설치 안내(`PwaInstallPrompt`)를 로그인 화면으로 이동
+4. 화면 전환 로딩 피드백 추가 (`RouteProgress`, `loading.tsx`)
+5. agents.md 인계 메모 작성
 
-- `git pull origin master`
-- `npm install`이 필요한 환경이면 먼저 실행
-- `.env.local`이 없으면 `.env.example` 기준으로 생성
-- `npm run dev`
-- 모바일/PWA에서 확인할 항목: 로그인 화면 로고, 로그인 전 설치 안내, 상단 상태바 침범 여부, 화면 전환 로딩 표시, 오늘 패턴 날짜 갱신
+**집 작업 (커밋 1개)**
+
+6. 오늘의 패턴 자동 생성 품질 개선:
+   - TOPICS를 5개 → 10개 행동형 문구로 확장 (10일 순환)
+   - 시스템 프롬프트 필드별 지시문 구체화:
+     - `usagePointKo`: 구체적 실전 상황 3개 콤마 구분
+     - `shadowing.tipKo`: 강세/연음/핵심단어 형식 고정
+     - `exercise.structure`: Situation/Action/Execution/Result 레이블 고정
+     - `miniFocusKo`: 퀵 드릴 지시문 + 수행 목표
+   - `review/page.tsx` 캘린더 타임존 버그 수정 (UTC → KST)
+   - `CLAUDE.md` 폴더 구조 현행화
+
+### 다른 컴퓨터에서 시작할 때
+
+```bash
+git pull origin master
+# npm install은 package.json 변경이 있을 때만
+# .env.local 없으면 .env.example 참고해서 생성
+npm run dev
+```
+
+### 배포 상태
+
+- Vercel Hobby 플랜, GitHub `master` 브랜치 자동배포 연결됨
+- 배포 후 `/patterns` 화면에서 "다시 생성" 버튼으로 새 프롬프트 결과 확인 가능
+
+### 다음 작업 후보
+
+우선순위 순:
+
+1. **모바일 실기기 테스트** — Vercel 배포 URL에서 iPhone/Safari 또는 설치형 PWA로 아래 항목 확인:
+   - 로그인 화면 로고 + PWA 설치 안내
+   - 상단 상태바 침범 여부 (safe-area overlay)
+   - 화면 전환 로딩 표시
+   - `/patterns` 화면에서 새 패턴 생성 품질 체감
+   - 실전 면접 Realtime 연결
+   - 면접 종료 후 종합 피드백
+   - 답변 노트 저장
+2. **프로필 수정 화면** (`/profile`) — 온보딩 이후 목표 포지션, 프로젝트 등 수정 기능
+3. **iOS Safari 마이크 권한 플로우** 테스트
