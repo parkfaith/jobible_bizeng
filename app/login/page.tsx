@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 
 export default function LoginPage() {
@@ -38,9 +39,14 @@ export default function LoginPage() {
     <main className="min-h-screen bg-slate-950 flex flex-col items-center justify-center px-6">
       <div className="w-full max-w-sm">
         <div className="flex flex-col items-center mb-8">
-          <div className="w-16 h-16 rounded-2xl bg-indigo-500/15 border border-indigo-500/30 flex items-center justify-center text-3xl mb-4">
-            🎯
-          </div>
+          <Image
+            src="/icons/jobible-bizeng-logo.svg"
+            alt="Jobible BizEng"
+            width={64}
+            height={64}
+            priority
+            className="mb-4 rounded-2xl"
+          />
           <h1 className="text-white text-2xl font-bold">Jobible BizEng</h1>
           <p className="text-slate-500 text-sm mt-1">영어 면접 코치</p>
         </div>
