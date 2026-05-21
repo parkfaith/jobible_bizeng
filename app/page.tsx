@@ -8,6 +8,7 @@ import { profile, practiceSessions, answerNotes, dailyPatterns } from "@/lib/db/
 import { and, desc, eq, gte, sql } from "drizzle-orm";
 import PatternSetCard from "@/components/PatternSetCard";
 import PatternSetFetcher from "@/components/PatternSetFetcher";
+import PwaInstallPrompt from "@/components/PwaInstallPrompt";
 import {
   DAILY_PATTERN_SET_TYPE,
   getKstDate,
@@ -17,8 +18,6 @@ import {
 export default async function HomePage() {
   const profileRow = await db.select().from(profile).limit(1);
   if (profileRow.length === 0) redirect("/onboarding");
-
-  const userProfile = profileRow[0];
 
   const weekAgo = new Date();
   weekAgo.setDate(weekAgo.getDate() - 7);
@@ -56,7 +55,7 @@ export default async function HomePage() {
   };
 
   return (
-    <main className="min-h-screen bg-slate-950 flex flex-col max-w-md mx-auto px-4 pt-8 pb-24">
+    <main className="min-h-screen bg-slate-950 flex flex-col max-w-md mx-auto px-4 pt-8 bottom-safe">
       {/* Header */}
       <div className="mb-6 flex items-center gap-3">
         <Image
@@ -88,6 +87,8 @@ export default async function HomePage() {
           </div>
         </div>
       </Link>
+
+      <PwaInstallPrompt />
 
       {/* Daily warm-up */}
       <div className="mb-4">
@@ -125,7 +126,7 @@ export default async function HomePage() {
             <Link
               key={note.id}
               href="/notes"
-              className="bg-slate-800 rounded-xl p-4 border border-slate-700 hover:bg-slate-700 transition-colors"
+              className="tap-target bg-slate-800 rounded-xl p-4 border border-slate-700 hover:bg-slate-700 transition-colors"
             >
               <div className="flex items-center gap-2 mb-2">
                 <span className="text-xs bg-slate-700 text-slate-300 px-2 py-0.5 rounded-full">
@@ -142,24 +143,24 @@ export default async function HomePage() {
       )}
 
       {/* Bottom Nav */}
-      <nav className="fixed bottom-0 left-0 right-0 bg-slate-900 border-t border-slate-800 flex justify-around py-3">
-        <Link href="/" className="flex flex-col items-center gap-1 text-indigo-400">
+      <nav className="bottom-nav fixed bottom-0 left-0 right-0 bg-slate-900 border-t border-slate-800 flex justify-around pt-3">
+        <Link href="/" className="tap-target flex flex-col items-center justify-center gap-1 text-indigo-400">
           <span className="text-xl">🏠</span>
           <span className="text-xs">홈</span>
         </Link>
-        <Link href="/practice/interview" className="flex flex-col items-center gap-1 text-slate-500">
+        <Link href="/practice/interview" className="tap-target flex flex-col items-center justify-center gap-1 text-slate-500">
           <span className="text-xl">🎙️</span>
           <span className="text-xs">면접</span>
         </Link>
-        <Link href="/notes" className="flex flex-col items-center gap-1 text-slate-500">
+        <Link href="/notes" className="tap-target flex flex-col items-center justify-center gap-1 text-slate-500">
           <span className="text-xl">📓</span>
           <span className="text-xs">답변 노트</span>
         </Link>
-        <Link href="/review" className="flex flex-col items-center gap-1 text-slate-500">
+        <Link href="/review" className="tap-target flex flex-col items-center justify-center gap-1 text-slate-500">
           <span className="text-xl">🗓️</span>
           <span className="text-xs">복습</span>
         </Link>
-        <Link href="/stats" className="flex flex-col items-center gap-1 text-slate-500">
+        <Link href="/stats" className="tap-target flex flex-col items-center justify-center gap-1 text-slate-500">
           <span className="text-xl">📊</span>
           <span className="text-xs">통계</span>
         </Link>

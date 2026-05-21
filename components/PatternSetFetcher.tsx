@@ -10,7 +10,7 @@ export default function PatternSetFetcher() {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    fetch("/api/patterns/daily")
+    fetch("/api/patterns/daily", { cache: "no-store" })
       .then((res) => res.json())
       .then((body) => {
         if (body.error) {

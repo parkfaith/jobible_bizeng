@@ -59,7 +59,7 @@ export default function InterviewPage() {
   const transcriptEndRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
-    fetch("/api/patterns/daily")
+    fetch("/api/patterns/daily", { cache: "no-store" })
       .then((res) => res.json())
       .then((body) => {
         if (!body.error) setPatternSet(body);
@@ -334,9 +334,9 @@ export default function InterviewPage() {
   // ── BRIEFING ────────────────────────────────────────────────────────────
   if (stage === "briefing") {
     return (
-      <main className="min-h-screen bg-slate-950 flex flex-col max-w-md mx-auto px-4 pt-7 pb-24">
+      <main className="min-h-screen bg-slate-950 flex flex-col max-w-md mx-auto px-4 pt-7 bottom-safe">
         <div className="flex items-center gap-3 mb-6">
-          <Link href="/" className="text-slate-400 text-2xl leading-none">←</Link>
+          <Link href="/" className="tap-target flex items-center justify-center text-slate-400 text-2xl leading-none">←</Link>
           <div className="w-11 h-11 rounded-2xl bg-violet-500/15 border border-violet-500/30 flex items-center justify-center text-2xl shrink-0">
             🎙️
           </div>
@@ -375,7 +375,7 @@ export default function InterviewPage() {
 
         <button
           onClick={startInterview}
-          className="mt-auto w-full py-4 rounded-xl bg-indigo-600 text-white font-semibold text-base active:scale-[0.99]"
+          className="tap-target mt-auto w-full rounded-xl bg-indigo-600 text-white font-semibold text-base active:scale-[0.99]"
         >
           면접 시작
         </button>
@@ -408,7 +408,7 @@ export default function InterviewPage() {
         <p className="text-slate-400 text-sm">{errorMsg}</p>
         <Link
           href="/"
-          className="mt-4 bg-slate-800 text-slate-300 px-6 py-3 rounded-xl text-sm font-semibold border border-slate-700"
+          className="tap-target mt-4 bg-slate-800 text-slate-300 px-6 rounded-xl text-sm font-semibold border border-slate-700 flex items-center"
         >
           홈으로 돌아가기
         </Link>
@@ -432,7 +432,7 @@ export default function InterviewPage() {
     return (
       <main className="min-h-screen bg-slate-950 flex flex-col max-w-md mx-auto px-4 pt-6 pb-10">
         <div className="flex items-center gap-3 mb-6">
-          <Link href="/" className="text-slate-400 text-2xl leading-none">←</Link>
+          <Link href="/" className="tap-target flex items-center justify-center text-slate-400 text-2xl leading-none">←</Link>
           <div className="w-11 h-11 rounded-2xl bg-green-500/15 border border-green-500/30 flex items-center justify-center text-2xl shrink-0">
             🧾
           </div>
@@ -548,7 +548,7 @@ export default function InterviewPage() {
 
           <Link
             href="/"
-            className="w-full py-4 rounded-xl bg-slate-800 text-slate-300 font-semibold text-base border border-slate-700 text-center"
+            className="tap-target w-full rounded-xl bg-slate-800 text-slate-300 font-semibold text-base border border-slate-700 text-center flex items-center justify-center"
           >
             홈으로
           </Link>
@@ -577,7 +577,7 @@ export default function InterviewPage() {
         </p>
         <button
           onClick={endInterview}
-          className="bg-slate-800 text-slate-300 text-xs px-3 py-1.5 rounded-lg border border-slate-700 hover:bg-slate-700 transition-colors"
+          className="tap-target bg-slate-800 text-slate-300 text-xs px-3 rounded-lg border border-slate-700 hover:bg-slate-700 transition-colors"
         >
           면접 종료
         </button>

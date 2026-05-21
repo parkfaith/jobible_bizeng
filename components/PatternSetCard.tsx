@@ -14,7 +14,7 @@ export default function PatternSetCard({ data }: { data: DailyPatternSet }) {
           </div>
           <Link
             href="/patterns"
-            className="shrink-0 text-xs text-slate-400 hover:text-slate-200 px-2 py-1 rounded-lg bg-slate-900"
+            className="tap-target shrink-0 text-xs text-slate-400 hover:text-slate-200 px-3 rounded-lg bg-slate-900 flex items-center"
           >
             전체
           </Link>
@@ -43,13 +43,13 @@ export default function PatternSetCard({ data }: { data: DailyPatternSet }) {
         <div className="flex gap-2">
           <Link
             href="/practice?source=pattern"
-            className="flex-1 py-3 rounded-xl bg-indigo-600 text-white text-center text-sm font-semibold hover:bg-indigo-500 transition-colors"
+            className="tap-target flex-1 rounded-xl bg-indigo-600 text-white text-center text-sm font-semibold hover:bg-indigo-500 transition-colors flex items-center justify-center"
           >
             30초 답변 연습
           </Link>
           <Link
             href="/patterns"
-            className="px-4 py-3 rounded-xl bg-slate-700 text-slate-200 text-sm font-semibold hover:bg-slate-600 transition-colors"
+            className="tap-target px-4 rounded-xl bg-slate-700 text-slate-200 text-sm font-semibold hover:bg-slate-600 transition-colors flex items-center justify-center"
           >
             보기
           </Link>

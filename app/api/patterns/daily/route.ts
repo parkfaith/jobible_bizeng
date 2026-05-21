@@ -19,11 +19,16 @@ const TOPICS = [
   "Failure Recovery + Client Trust",
 ] as const;
 
-function topicForToday() {
-  const now = new Date();
-  const start = new Date(now.getFullYear(), 0, 0);
-  const dayOfYear = Math.floor((now.getTime() - start.getTime()) / 86400000);
-  return TOPICS[dayOfYear % TOPICS.length];
+function dayOfYearForKstDate(kstDate: string) {
+  const [year, month, day] = kstDate.split("-").map(Number);
+  const current = Date.UTC(year, month - 1, day);
+  const start = Date.UTC(year, 0, 1);
+  return Math.floor((current - start) / 86400000) + 1;
+}
+
+function topicForDate(kstDate = getKstDate()) {
+  const dayOfYear = dayOfYearForKstDate(kstDate);
+  return TOPICS[(dayOfYear - 1) % TOPICS.length];
 }
 
 function extractResponseText(data: {
@@ -49,7 +54,8 @@ async function generatePatternSet(): Promise<DailyPatternSet> {
   const projects = userProfile?.projects
     ? JSON.parse(userProfile.projects)
     : [{ name: "enterprise AI deployment", role: "project lead" }];
-  const topic = topicForToday();
+  const today = getKstDate();
+  const topic = topicForDate(today);
 
   const res = await fetch("https://api.openai.com/v1/responses", {
     method: "POST",
@@ -184,18 +190,26 @@ export async function GET() {
     .limit(1);
 
   if (cached.length > 0) {
-    return NextResponse.json(JSON.parse(cached[0].content));
+    const cachedContent = JSON.parse(cached[0].content) as DailyPatternSet;
+    const expectedTopic = topicForDate(today);
+    if (cachedContent.source === "manual" || cachedContent.topic === expectedTopic) {
+      return NextResponse.json(cachedContent, {
+        headers: { "Cache-Control": "no-store" },
+      });
+    }
   }
 
   try {
     const generated = await generatePatternSet();
     await upsertTodayPatternSet(generated);
-    return NextResponse.json(generated);
+    return NextResponse.json(generated, {
+      headers: { "Cache-Control": "no-store" },
+    });
   } catch (error) {
     console.error("daily pattern generation failed", error);
     return NextResponse.json(
       { error: "Failed to generate pattern set" },
-      { status: 500 }
+      { status: 500, headers: { "Cache-Control": "no-store" } }
     );
   }
 }
@@ -206,18 +220,20 @@ export async function POST() {
     if (count >= 3) {
       return NextResponse.json(
         { error: "Daily regeneration limit reached" },
-        { status: 429 }
+        { status: 429, headers: { "Cache-Control": "no-store" } }
       );
     }
     const generated = await generatePatternSet();
     await upsertTodayPatternSet(generated);
     await recordRegeneration();
-    return NextResponse.json(generated);
+    return NextResponse.json(generated, {
+      headers: { "Cache-Control": "no-store" },
+    });
   } catch (error) {
     console.error("daily pattern regeneration failed", error);
     return NextResponse.json(
       { error: "Failed to regenerate pattern set" },
-      { status: 500 }
+      { status: 500, headers: { "Cache-Control": "no-store" } }
     );
   }
 }
@@ -246,5 +262,7 @@ export async function PATCH(req: Request) {
       .where(eq(dailyPatterns.id, existing[0].id));
   }
 
-  return NextResponse.json(updated);
+  return NextResponse.json(updated, {
+    headers: { "Cache-Control": "no-store" },
+  });
 }

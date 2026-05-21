@@ -6,9 +6,37 @@
 
 * {
   -webkit-tap-highlight-color: transparent;
+  box-sizing: border-box;
 }
 
-/* Safe area for iOS */
+html {
+  min-height: 100%;
+  background: #020617;
+}
+
 body {
+  min-height: 100%;
+  background: #020617;
+  padding-top: env(safe-area-inset-top);
   padding-bottom: env(safe-area-inset-bottom);
+  overscroll-behavior-y: none;
+}
+
+button,
+a,
+summary {
+  touch-action: manipulation;
+}
+
+.tap-target {
+  min-height: 44px;
+  min-width: 44px;
+}
+
+.bottom-nav {
+  padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
+}
+
+.bottom-safe {
+  padding-bottom: calc(6rem + env(safe-area-inset-bottom));
 }

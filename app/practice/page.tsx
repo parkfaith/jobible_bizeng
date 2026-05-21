@@ -71,7 +71,7 @@ function PracticeContent() {
 
   useEffect(() => {
     const endpoint = isPatternPractice ? "/api/patterns/daily" : "/api/questions/daily";
-    fetch(endpoint)
+    fetch(endpoint, { cache: "no-store" })
       .then((r) => r.json())
       .then((data) => {
         if (data.error) throw new Error(data.error);
@@ -222,7 +222,7 @@ function PracticeContent() {
     <main className="min-h-screen bg-slate-950 flex flex-col max-w-md mx-auto px-4 pt-6 pb-10">
       {/* Header */}
       <div className="flex items-center gap-3 mb-5">
-        <Link href="/" className="text-slate-400 text-2xl leading-none">
+        <Link href="/" className="tap-target flex items-center justify-center text-slate-400 text-2xl leading-none">
           ←
         </Link>
         <div className="w-11 h-11 rounded-2xl bg-violet-500/15 border border-violet-500/30 flex items-center justify-center text-2xl shrink-0">
@@ -271,7 +271,7 @@ function PracticeContent() {
               <p className="text-indigo-300 text-xs font-medium">오늘 써볼 답변 프레임</p>
               <p className="text-white text-sm font-semibold mt-0.5">{patternSet.topic}</p>
             </div>
-            <Link href="/patterns" className="text-indigo-300 text-xs shrink-0">
+            <Link href="/patterns" className="tap-target flex items-center text-indigo-300 text-xs shrink-0">
               전체 보기
             </Link>
           </div>

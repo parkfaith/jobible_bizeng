@@ -14,7 +14,7 @@ export default function PatternsPage() {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    fetch("/api/patterns/daily")
+    fetch("/api/patterns/daily", { cache: "no-store" })
       .then((res) => res.json())
       .then((body) => {
         if (body.error) setError("오늘의 패턴을 만들지 못했습니다.");
@@ -97,9 +97,9 @@ export default function PatternsPage() {
   }
 
   return (
-    <main className="min-h-screen bg-slate-950 flex flex-col max-w-md mx-auto px-4 pt-6 pb-24">
+    <main className="min-h-screen bg-slate-950 flex flex-col max-w-md mx-auto px-4 pt-6 bottom-safe">
       <div className="flex items-center gap-3 mb-5">
-        <Link href="/" className="text-slate-400 text-2xl leading-none">
+        <Link href="/" className="tap-target flex items-center justify-center text-slate-400 text-2xl leading-none">
           ←
         </Link>
         <div className="w-11 h-11 rounded-2xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-2xl shrink-0">
@@ -139,20 +139,20 @@ export default function PatternsPage() {
           <>
             <Link
               href="/practice?source=pattern"
-              className="flex-1 py-3 rounded-xl bg-indigo-600 text-white text-center text-sm font-semibold"
+              className="tap-target flex-1 rounded-xl bg-indigo-600 text-white text-center text-sm font-semibold flex items-center justify-center"
             >
               이 패턴으로 말하기
             </Link>
             <button
               onClick={startEdit}
-              className="px-4 py-3 rounded-xl bg-slate-800 text-slate-300 text-sm font-semibold border border-slate-700"
+              className="tap-target px-4 rounded-xl bg-slate-800 text-slate-300 text-sm font-semibold border border-slate-700"
             >
               수정
             </button>
             <button
               onClick={regenerate}
               disabled={regenerating}
-              className="px-4 py-3 rounded-xl bg-slate-800 text-slate-300 text-sm font-semibold border border-slate-700 disabled:opacity-50"
+              className="tap-target px-4 rounded-xl bg-slate-800 text-slate-300 text-sm font-semibold border border-slate-700 disabled:opacity-50"
             >
               {regenerating ? "생성 중" : "다시 생성"}
             </button>
