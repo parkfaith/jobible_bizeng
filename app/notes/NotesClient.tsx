@@ -107,7 +107,7 @@ export default function NotesClient({ initialNotes }: { initialNotes: Note[] }) 
           <button
             key={cat.key}
             onClick={() => setActiveCategory(cat.key)}
-            className={`min-h-10 px-3 py-2 rounded-xl text-sm font-medium transition-colors ${
+            className={`min-h-11 px-3 py-2 rounded-xl text-sm font-medium transition-colors ${
               activeCategory === cat.key
                 ? "bg-indigo-600 text-white"
                 : "bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700"
@@ -250,14 +250,14 @@ export default function NotesClient({ initialNotes }: { initialNotes: Note[] }) 
                       <>
                         <button
                           onClick={() => setEditingId(null)}
-                          className="flex-1 py-2.5 rounded-xl bg-slate-700 text-slate-300 text-sm font-medium"
+                          className="flex-1 min-h-11 py-2.5 rounded-xl bg-slate-700 text-slate-300 text-sm font-medium"
                         >
                           취소
                         </button>
                         <button
                           onClick={() => saveEdit(note)}
                           disabled={saving}
-                          className="flex-1 py-2.5 rounded-xl bg-indigo-600 text-white text-sm font-medium disabled:opacity-50"
+                          className="flex-1 min-h-11 py-2.5 rounded-xl bg-indigo-600 text-white text-sm font-medium disabled:opacity-50"
                         >
                           {saving ? "저장 중..." : "저장"}
                         </button>
@@ -266,14 +266,14 @@ export default function NotesClient({ initialNotes }: { initialNotes: Note[] }) 
                       <>
                         <button
                           onClick={() => startEdit(note)}
-                          className="flex-1 py-2.5 rounded-xl bg-slate-700 text-slate-300 text-sm font-medium hover:bg-slate-600 transition-colors"
+                          className="flex-1 min-h-11 py-2.5 rounded-xl bg-slate-700 text-slate-300 text-sm font-medium hover:bg-slate-600 transition-colors"
                         >
                           수정
                         </button>
                         <button
                           onClick={() => deleteNote(note.id)}
                           disabled={deletingId === note.id}
-                          className="py-2.5 px-4 rounded-xl bg-slate-700 text-red-400 text-sm font-medium hover:bg-red-900/30 transition-colors disabled:opacity-50"
+                          className="min-h-11 py-2.5 px-4 rounded-xl bg-slate-700 text-red-400 text-sm font-medium hover:bg-red-900/30 transition-colors disabled:opacity-50"
                         >
                           {deletingId === note.id ? "..." : "삭제"}
                         </button>

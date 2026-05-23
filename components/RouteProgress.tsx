@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 
 const MIN_VISIBLE_MS = 250;
 const FALLBACK_HIDE_MS = 8000;
+const SHOW_DELAY_MS = 80;
 
 function isPlainLeftClick(event: MouseEvent) {
   return (
@@ -20,11 +21,13 @@ export default function RouteProgress() {
   const pathname = usePathname();
   const [pending, setPending] = useState(false);
   const shownAtRef = useRef(0);
+  const showTimerRef = useRef<number | null>(null);
   const hideTimerRef = useRef<number | null>(null);
   const fallbackTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
     function clearTimers() {
+      if (showTimerRef.current) window.clearTimeout(showTimerRef.current);
       if (hideTimerRef.current) window.clearTimeout(hideTimerRef.current);
       if (fallbackTimerRef.current) window.clearTimeout(fallbackTimerRef.current);
     }
@@ -52,13 +55,13 @@ export default function RouteProgress() {
       if (nextUrl.origin !== currentUrl.origin) return;
       if (nextUrl.href === currentUrl.href) return;
 
-      showProgress();
+      showTimerRef.current = window.setTimeout(showProgress, SHOW_DELAY_MS);
     }
 
-    document.addEventListener("click", handleClick, true);
+    document.addEventListener("click", handleClick);
     window.addEventListener("pageshow", clearTimers);
     return () => {
-      document.removeEventListener("click", handleClick, true);
+      document.removeEventListener("click", handleClick);
       window.removeEventListener("pageshow", clearTimers);
       clearTimers();
     };

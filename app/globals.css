@@ -7,6 +7,7 @@
 * {
   -webkit-tap-highlight-color: transparent;
   box-sizing: border-box;
+  touch-action: manipulation;
 }
 
 html {
@@ -43,10 +44,19 @@ summary {
 .tap-target {
   min-height: 44px;
   min-width: 44px;
+  cursor: pointer;
 }
 
 .bottom-nav {
   padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
+  z-index: 50;
+}
+
+.bottom-nav a {
+  flex: 1;
+  min-height: 56px;
+  padding-left: 0.25rem;
+  padding-right: 0.25rem;
 }
 
 .bottom-safe {
