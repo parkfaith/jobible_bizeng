@@ -58,10 +58,10 @@ export default function RouteProgress() {
       showTimerRef.current = window.setTimeout(showProgress, SHOW_DELAY_MS);
     }
 
-    document.addEventListener("click", handleClick);
+    document.addEventListener("click", handleClick, true);
     window.addEventListener("pageshow", clearTimers);
     return () => {
-      document.removeEventListener("click", handleClick);
+      document.removeEventListener("click", handleClick, true);
       window.removeEventListener("pageshow", clearTimers);
       clearTimers();
     };

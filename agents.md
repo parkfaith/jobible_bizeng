@@ -805,3 +805,27 @@ npm run dev
    - 답변 노트 저장
 2. **프로필 수정 화면** (`/profile`) — 온보딩 이후 목표 포지션, 프로젝트 등 수정 기능
 3. **iOS Safari 마이크 권한 플로우** 테스트
+
+## 20. 모바일 터치 안정성 점검 (2026-05-23)
+
+하단 네비게이션과 상단 뒤로가기 버튼이 몇 번 눌러야 반응하는 문제가 보고되어 터치 관련 전역 CSS와 라우트 전환 피드백을 점검했다.
+
+분석:
+
+- 화면을 가리는 명시적인 모달/팝업은 없었다.
+- `* { touch-action: manipulation; }`가 모든 요소에 적용되어 있어, iOS Safari/PWA에서 스크롤 영역과 고정 하단 메뉴의 터치 판정에 불필요하게 개입할 수 있었다.
+- safe-area 상태바 보정용 `body::before`가 `z-index: 2147483647`로 앱 전체 최상위 레이어에 올라와 있었다. `pointer-events: none`이긴 하지만, 모바일 Safari/PWA의 터치 hit-test 문제를 피하려면 이렇게 높은 z-index를 유지할 이유가 없었다.
+- `RouteProgress`는 문서의 일반 click bubble 단계에서 링크 클릭을 감지했는데, Next.js `Link`가 먼저 처리하면 전환 피드백이 늦거나 누락될 수 있었다.
+
+수정:
+
+- 전역 `*`의 `touch-action: manipulation`을 제거하고, `button`, `a`, `summary`에만 유지했다.
+- safe-area 보정용 `body::before`의 z-index를 낮췄다.
+- `.bottom-nav`는 `z-index: 100`, `pointer-events: auto`, `translateZ(0)`를 명시해 모바일에서 별도 합성 레이어로 안정적으로 탭되게 했다.
+- `.bottom-nav a`에도 `pointer-events: auto`를 명시했다.
+- `RouteProgress`의 링크 감지를 capture 단계로 변경해 첫 탭 직후 화면 전환 피드백이 더 안정적으로 뜨게 했다.
+
+검증 필요:
+
+- 실제 iPhone Safari 또는 설치형 PWA에서 하단 네비게이션 5개 메뉴와 상단 뒤로가기 버튼을 반복 탭해 반응성을 확인한다.
+- 특히 `/notes`, `/review`, `/stats`처럼 서버 데이터를 읽는 화면에서 첫 탭 후 전환 피드백이 바로 보이는지 확인한다.
