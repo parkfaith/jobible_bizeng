@@ -8,10 +8,16 @@ import { profile, practiceSessions, answerNotes, dailyPatterns } from "@/lib/db/
 import { and, desc, eq, gte, sql } from "drizzle-orm";
 import PatternSetCard from "@/components/PatternSetCard";
 import PatternSetFetcher from "@/components/PatternSetFetcher";
+import WeeklySummaryCard from "@/components/WeeklySummaryCard";
+import WeeklySummaryFetcher from "@/components/WeeklySummaryFetcher";
 import {
   DAILY_PATTERN_SET_TYPE,
+  WEEKLY_SUMMARY_SET_TYPE,
   getKstDate,
+  isWeekendKst,
+  getWeekSaturdayDate,
   type DailyPatternSet,
+  type WeeklySummarySet,
 } from "@/lib/pattern-set";
 
 export default async function HomePage() {
@@ -36,14 +42,31 @@ export default async function HomePage() {
     .limit(2);
 
   const today = getKstDate();
-  const patternSetRow = await db
-    .select()
-    .from(dailyPatterns)
-    .where(and(eq(dailyPatterns.date, today), eq(dailyPatterns.patternType, DAILY_PATTERN_SET_TYPE)))
-    .limit(1);
-  const patternSet: DailyPatternSet | null = patternSetRow[0]
-    ? (JSON.parse(patternSetRow[0].content) as DailyPatternSet)
-    : null;
+  const weekend = isWeekendKst();
+
+  let patternSet: DailyPatternSet | null = null;
+  let weeklySummary: WeeklySummarySet | null = null;
+
+  if (weekend) {
+    const satDate = getWeekSaturdayDate();
+    const weeklyRow = await db
+      .select()
+      .from(dailyPatterns)
+      .where(and(eq(dailyPatterns.date, satDate), eq(dailyPatterns.patternType, WEEKLY_SUMMARY_SET_TYPE)))
+      .limit(1);
+    weeklySummary = weeklyRow[0]
+      ? (JSON.parse(weeklyRow[0].content) as WeeklySummarySet)
+      : null;
+  } else {
+    const patternSetRow = await db
+      .select()
+      .from(dailyPatterns)
+      .where(and(eq(dailyPatterns.date, today), eq(dailyPatterns.patternType, DAILY_PATTERN_SET_TYPE)))
+      .limit(1);
+    patternSet = patternSetRow[0]
+      ? (JSON.parse(patternSetRow[0].content) as DailyPatternSet)
+      : null;
+  }
 
   const CATEGORY_LABEL: Record<string, string> = {
     intro: "자기소개",
@@ -86,9 +109,19 @@ export default async function HomePage() {
           </div>
         </div>
       </Link>
-      {/* Daily warm-up */}
+      {/* Daily warm-up / Weekend summary */}
       <div className="mb-4">
-        {patternSet ? <PatternSetCard data={patternSet} /> : <PatternSetFetcher />}
+        {weekend ? (
+          weeklySummary ? (
+            <WeeklySummaryCard data={weeklySummary} />
+          ) : (
+            <WeeklySummaryFetcher />
+          )
+        ) : patternSet ? (
+          <PatternSetCard data={patternSet} />
+        ) : (
+          <PatternSetFetcher />
+        )}
       </div>
 
       {/* Stats */}

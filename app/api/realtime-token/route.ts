@@ -1,14 +1,61 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { dailyPatterns, profile } from "@/lib/db/schema";
-import { and, eq } from "drizzle-orm";
+import { dailyPatterns, practiceSessions, profile } from "@/lib/db/schema";
+import { and, eq, gte, ne } from "drizzle-orm";
 import {
   DAILY_PATTERN_SET_TYPE,
   getKstDate,
   type DailyPatternSet,
 } from "@/lib/pattern-set";
+import {
+  buildSystemPrompt,
+  type ScenarioId,
+} from "@/lib/scenarios";
+import { WEEKLY_SESSION_LIMIT } from "@/lib/constants";
 
-export async function POST() {
+function getWeekMondayUtcIso(): string {
+  const kstOffsetMs = 9 * 60 * 60 * 1000;
+  const nowKst = new Date(Date.now() + kstOffsetMs);
+  const dayKst = nowKst.getUTCDay();
+  const daysFromMonday = dayKst === 0 ? 6 : dayKst - 1;
+  const mondayKst = new Date(nowKst.getTime() - daysFromMonday * 86400000);
+  const mondayMidnightKst = new Date(
+    Date.UTC(mondayKst.getUTCFullYear(), mondayKst.getUTCMonth(), mondayKst.getUTCDate(), 0, 0, 0)
+  );
+  const mondayMidnightUtc = new Date(mondayMidnightKst.getTime() - kstOffsetMs);
+  return mondayMidnightUtc.toISOString();
+}
+
+export async function POST(req: Request) {
+  const body = await req.json().catch(() => ({})) as { scenario?: string };
+  const scenarioId: ScenarioId = (body.scenario as ScenarioId) ?? "interview";
+
+  // ── Weekly session limit guard ────────────────────────────────────────────
+  const mondayIso = getWeekMondayUtcIso();
+  const weeklySessions = await db
+    .select()
+    .from(practiceSessions)
+    .where(
+      and(
+        eq(practiceSessions.mode, "interview"),
+        gte(practiceSessions.startedAt, mondayIso),
+        ne(practiceSessions.status, "abandoned")
+      )
+    );
+
+  if (weeklySessions.length >= WEEKLY_SESSION_LIMIT) {
+    return NextResponse.json(
+      {
+        error: "weekly_limit_reached",
+        message: `이번 주 실전 세션 ${WEEKLY_SESSION_LIMIT}회를 완료했습니다. 다음 주 월요일에 다시 이용할 수 있습니다.`,
+        count: weeklySessions.length,
+        limit: WEEKLY_SESSION_LIMIT,
+      },
+      { status: 429 }
+    );
+  }
+
+  // ── Build prompt context ──────────────────────────────────────────────────
   const profiles = await db.select().from(profile).limit(1);
   const userProfile = profiles[0];
 
@@ -33,31 +80,12 @@ export async function POST() {
         .map((step) => `${step.label}: ${step.sentence}`)
         .join(" | ")}
 
-Use this topic as the main thread of the interview. Ask realistic follow-up questions around this focus.`
-    : "No daily pattern set is available, so use a general senior AI leadership interview flow.";
+Use this topic as the main thread of the interview.`
+    : "No daily pattern set is available. Use a general senior AI leadership interview flow.";
 
-  const instructions = `You are a rigorous interviewer at a global tech company interviewing a senior Korean AI/IT leader for a foreign company.
+  const instructions = buildSystemPrompt(scenarioId, profileCtx, patternCtx);
 
-${profileCtx}
-
-${patternCtx}
-
-Your interviewing style:
-- Professional and direct. Not overly warm. Real interview energy.
-- Ask ONE question at a time. Wait for the full answer before asking the next.
-- Ask natural follow-up questions based on what the candidate says. Don't follow a rigid script.
-- Do NOT give feedback or coaching during the interview. Stay in interviewer mode only.
-- Speak in clear, moderately-paced English so the candidate can follow.
-
-Interview structure:
-- Keep the session short: 5–10 minutes total.
-- Ask 3–4 questions total.
-- Start with the daily focus topic, not a generic long self-introduction.
-- Include 1 natural follow-up question based on the candidate's answer.
-- End with a concise closing when the final question is complete.
-
-When the client asks you to begin, start with a brief greeting and the first question. Do not announce the internal structure.`;
-
+  // ── Request ephemeral token ───────────────────────────────────────────────
   const res = await fetch("https://api.openai.com/v1/realtime/client_secrets", {
     method: "POST",
     headers: {

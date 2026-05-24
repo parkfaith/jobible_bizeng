@@ -9,6 +9,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [navigating, setNavigating] = useState(false);
   const router = useRouter();
 
   async function handleSubmit(e: React.FormEvent) {
@@ -24,16 +25,26 @@ export default function LoginPage() {
       });
 
       if (res.ok) {
+        setNavigating(true);
         router.replace("/");
+        return;
       } else {
         const data = await res.json();
         setError(data.error ?? "로그인에 실패했습니다.");
       }
     } catch {
       setError("네트워크 오류가 발생했습니다.");
-    } finally {
-      setLoading(false);
     }
+    setLoading(false);
+  }
+
+  if (navigating) {
+    return (
+      <div className="fixed inset-0 bg-slate-950 flex flex-col items-center justify-center z-50 gap-4">
+        <div className="w-10 h-10 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+        <p className="text-slate-400 text-sm">홈 화면을 여는 중...</p>
+      </div>
+    );
   }
 
   return (

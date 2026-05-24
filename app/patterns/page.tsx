@@ -2,9 +2,214 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import type { DailyPatternSet } from "@/lib/pattern-set";
+import type { DailyPatternSet, WeeklySummarySet } from "@/lib/pattern-set";
+
+function isWeekendKstClient() {
+  const kst = new Date(Date.now() + 9 * 60 * 60 * 1000);
+  const day = kst.getUTCDay();
+  return day === 0 || day === 6;
+}
+
+// ─── Daily Pattern View ───────────────────────────────────────────────────────
 
 export default function PatternsPage() {
+  const [isWeekend] = useState(() => isWeekendKstClient());
+
+  if (isWeekend) return <WeeklyView />;
+  return <DailyView />;
+}
+
+// ─── Weekly Summary View ──────────────────────────────────────────────────────
+
+function WeeklyView() {
+  const [data, setData] = useState<WeeklySummarySet | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [regenerating, setRegenerating] = useState(false);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    fetch("/api/patterns/weekly", { cache: "no-store" })
+      .then((res) => res.json())
+      .then((body) => {
+        if (body.error) setError("이번 주 요약을 만들지 못했습니다.");
+        else setData(body);
+      })
+      .catch(() => setError("이번 주 요약을 불러오지 못했습니다."))
+      .finally(() => setLoading(false));
+  }, []);
+
+  async function regenerate() {
+    setRegenerating(true);
+    setError("");
+    try {
+      const res = await fetch("/api/patterns/weekly", { method: "POST" });
+      const updated = await res.json();
+      if (updated.error) setError(updated.error);
+      else setData(updated);
+    } catch {
+      setError("다시 생성하지 못했습니다.");
+    } finally {
+      setRegenerating(false);
+    }
+  }
+
+  if (loading) {
+    return (
+      <main className="min-h-screen bg-slate-950 flex items-center justify-center">
+        <div className="w-10 h-10 rounded-full border-4 border-emerald-400 border-t-transparent animate-spin" />
+      </main>
+    );
+  }
+
+  if (!data) {
+    return (
+      <main className="min-h-screen bg-slate-950 flex flex-col items-center justify-center gap-4 px-4 text-center">
+        <p className="text-white font-semibold">이번 주 요약을 불러오지 못했습니다</p>
+        <p className="text-slate-500 text-sm">{error}</p>
+        <button
+          onClick={regenerate}
+          className="bg-emerald-700 text-white px-5 py-3 rounded-xl text-sm font-semibold"
+        >
+          다시 생성
+        </button>
+      </main>
+    );
+  }
+
+  return (
+    <main className="min-h-screen bg-slate-950 flex flex-col max-w-md mx-auto px-4 pt-6 bottom-safe">
+      <div className="flex items-center gap-3 mb-5">
+        <Link href="/" className="tap-target flex items-center justify-center text-slate-400 text-2xl leading-none">
+          ←
+        </Link>
+        <div className="w-11 h-11 rounded-2xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-2xl shrink-0">
+          📋
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-emerald-400 text-xs font-medium">이번 주 면접 답변 요약</p>
+          <h1 className="text-white font-bold text-lg leading-tight">
+            {data.weekStart} ~ {data.weekEnd}
+          </h1>
+        </div>
+      </div>
+
+      {error && (
+        <div className="bg-red-900/30 border border-red-800 rounded-xl px-4 py-3 mb-4 text-red-300 text-sm">
+          {error}
+        </div>
+      )}
+
+      <div className="flex gap-2 mb-5">
+        <Link
+          href="/practice?source=weekly"
+          className="tap-target flex-1 rounded-xl bg-emerald-700 text-white text-center text-sm font-semibold flex items-center justify-center py-3"
+        >
+          주말 3분 리허설
+        </Link>
+        <button
+          onClick={regenerate}
+          disabled={regenerating}
+          className="tap-target px-4 py-3 rounded-xl bg-slate-800 text-slate-300 text-sm font-semibold border border-slate-700 disabled:opacity-50"
+        >
+          {regenerating ? "생성 중" : "다시 생성"}
+        </button>
+      </div>
+
+      <div className="flex flex-col gap-5">
+        <WeeklySection title="이번 주 핵심 패턴 3개">
+          <div className="flex flex-col gap-3">
+            {data.corePatterns.map((p, i) => (
+              <div key={i} className="bg-slate-800 border border-slate-700 rounded-2xl p-4">
+                <p className="text-emerald-300 text-xs font-semibold mb-2">Pattern #{i + 1} — {p.from}</p>
+                <p className="text-white text-sm leading-relaxed font-medium">{p.sentence}</p>
+              </div>
+            ))}
+          </div>
+        </WeeklySection>
+
+        <WeeklySection title="이번 주 주요 면접 질문 3개">
+          <div className="flex flex-col gap-2">
+            {data.keyQuestions.map((q, i) => (
+              <div key={i} className="bg-slate-800 border border-slate-700 rounded-2xl p-4">
+                <p className="text-indigo-300 text-xs font-semibold mb-1">Q{i + 1}</p>
+                <p className="text-slate-100 text-sm leading-relaxed">{q}</p>
+              </div>
+            ))}
+          </div>
+        </WeeklySection>
+
+        <WeeklySection title="내가 고칠 점">
+          <div className="bg-amber-950/60 border border-amber-800/40 rounded-2xl p-4">
+            <p className="text-amber-100 text-sm leading-relaxed">{data.fixThis}</p>
+          </div>
+        </WeeklySection>
+
+        <WeeklySection title="면접에서 바로 쓸 수 있는 문장 5개">
+          <div className="flex flex-col gap-2">
+            {data.readySentences.map((s, i) => (
+              <div key={i} className="bg-slate-800 border border-slate-700 rounded-2xl px-4 py-3 flex items-start gap-3">
+                <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-indigo-500/20 text-indigo-300 text-[11px] font-semibold mt-0.5">
+                  {i + 1}
+                </span>
+                <p className="text-white text-sm leading-relaxed">{s}</p>
+              </div>
+            ))}
+          </div>
+        </WeeklySection>
+
+        <WeeklySection title="주말 3분 리허설">
+          <div className="bg-indigo-950 border border-indigo-800 rounded-2xl p-4">
+            <p className="text-indigo-200 text-xs mb-2">질문</p>
+            <p className="text-white text-sm leading-relaxed mb-4">{data.rehearsalQuestion}</p>
+            <p className="text-indigo-300 text-xs font-medium mb-2">30초 답변 구조</p>
+            <div className="flex flex-col gap-2">
+              {data.answerStructure.map((step) => (
+                <div key={step.label} className="grid grid-cols-[92px_1fr] gap-2">
+                  <span className="text-indigo-300 text-xs font-semibold pt-0.5">{step.label}</span>
+                  <span className="text-slate-100 text-sm leading-relaxed">{step.sentence}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+          <Link
+            href="/practice?source=weekly"
+            className="tap-target mt-3 block w-full py-4 rounded-2xl bg-emerald-700 text-white text-center text-sm font-bold hover:bg-emerald-600 transition-colors"
+          >
+            지금 말해보기 →
+          </Link>
+        </WeeklySection>
+
+        <WeeklySection title="더 보기">
+          <Link
+            href="/review"
+            className="flex items-center gap-3 bg-slate-800 border border-slate-700 rounded-2xl p-4"
+          >
+            <div className="w-10 h-10 rounded-xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-lg shrink-0">
+              🗓️
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-slate-300 text-sm font-semibold">지난 패턴 복습하기</p>
+              <p className="text-slate-500 text-xs mt-1">날짜별로 쌓인 패턴을 캘린더에서 다시 봅니다.</p>
+            </div>
+          </Link>
+        </WeeklySection>
+      </div>
+    </main>
+  );
+}
+
+function WeeklySection({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <section>
+      <p className="text-slate-400 text-xs font-medium mb-2">{title}</p>
+      {children}
+    </section>
+  );
+}
+
+// ─── Daily Pattern View ───────────────────────────────────────────────────────
+
+function DailyView() {
   const [data, setData] = useState<DailyPatternSet | null>(null);
   const [draft, setDraft] = useState<DailyPatternSet | null>(null);
   const [editing, setEditing] = useState(false);
@@ -22,7 +227,6 @@ export default function PatternsPage() {
       })
       .catch(() => setError("오늘의 패턴을 불러오지 못했습니다."))
       .finally(() => setLoading(false));
-
   }, []);
 
   function startEdit() {
@@ -139,7 +343,7 @@ export default function PatternsPage() {
           <>
             <Link
               href="/practice?source=pattern"
-              className="tap-target flex-1 rounded-xl bg-indigo-600 text-white text-center text-sm font-semibold flex items-center justify-center"
+              className="tap-target flex-1 rounded-xl bg-indigo-600 text-white text-center text-sm font-semibold flex items-center justify-center py-3"
             >
               이 패턴으로 말하기
             </Link>

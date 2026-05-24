@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Suspense } from "react";
-import type { DailyPatternSet } from "@/lib/pattern-set";
+import type { DailyPatternSet, WeeklySummarySet } from "@/lib/pattern-set";
 
 type Stage = "loading" | "idle" | "recording" | "transcribing" | "feedback";
 
@@ -55,10 +55,12 @@ function PracticeContent() {
   const searchParams = useSearchParams();
   const source = searchParams.get("source") ?? "pattern";
   const isPatternPractice = source === "pattern";
+  const isWeeklyPractice = source === "weekly";
 
   const [stage, setStage] = useState<Stage>("loading");
   const [question, setQuestion] = useState<DailyQuestion | null>(null);
   const [patternSet, setPatternSet] = useState<DailyPatternSet | null>(null);
+  const [weeklySummary, setWeeklySummary] = useState<WeeklySummarySet | null>(null);
   const [transcript, setTranscript] = useState("");
   const [feedback, setFeedback] = useState<Feedback | null>(null);
   const [recordingSeconds, setRecordingSeconds] = useState(0);
@@ -70,12 +72,24 @@ function PracticeContent() {
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
-    const endpoint = isPatternPractice ? "/api/patterns/daily" : "/api/questions/daily";
+    let endpoint: string;
+    if (isWeeklyPractice) endpoint = "/api/patterns/weekly";
+    else if (isPatternPractice) endpoint = "/api/patterns/daily";
+    else endpoint = "/api/questions/daily";
+
     fetch(endpoint, { cache: "no-store" })
       .then((r) => r.json())
       .then((data) => {
         if (data.error) throw new Error(data.error);
-        if (isPatternPractice) {
+        if (isWeeklyPractice) {
+          const set = data as WeeklySummarySet;
+          setWeeklySummary(set);
+          setQuestion({
+            question: set.rehearsalQuestion,
+            category: "career",
+            hint: `${set.answerStructure.map((s) => s.label).join(" → ")} 구조로 30초 안에 말해보세요.`,
+          });
+        } else if (isPatternPractice) {
           const set = data as DailyPatternSet;
           setPatternSet(set);
           setQuestion({
@@ -89,7 +103,7 @@ function PracticeContent() {
         setStage("idle");
       })
       .catch(() => setError("질문을 불러오지 못했습니다. 잠시 후 다시 시도해주세요."));
-  }, [isPatternPractice]);
+  }, [isPatternPractice, isWeeklyPractice]);
 
   const startRecording = useCallback(async () => {
     setError("");
@@ -119,6 +133,7 @@ function PracticeContent() {
   const stopRecording = useCallback(() => {
     if (!mediaRecorderRef.current) return;
     if (timerRef.current) clearInterval(timerRef.current);
+
 
     mediaRecorderRef.current.onstop = async () => {
       const blob = new Blob(chunksRef.current, {
@@ -165,7 +180,7 @@ function PracticeContent() {
             question: question?.question,
             transcript: text,
             category: question?.category,
-            patternSet,
+            patternSet: patternSet ?? (weeklySummary ? { topic: "Weekly Rehearsal", exercise: { question: weeklySummary.rehearsalQuestion, structure: weeklySummary.answerStructure } } : null),
             sessionId,
           }),
         });
@@ -189,7 +204,7 @@ function PracticeContent() {
     };
 
     mediaRecorderRef.current.stop();
-  }, [patternSet, question]);
+  }, [patternSet, weeklySummary, question]);
 
   function retry() {
     setTranscript("");
@@ -230,15 +245,20 @@ function PracticeContent() {
         </div>
         <div>
           <p className="text-slate-400 text-xs">
-            {isPatternPractice ? "패턴 기반 질문 연습" : "오늘의 질문 연습"}
+            {isWeeklyPractice
+              ? "주말 리허설"
+              : isPatternPractice
+              ? "패턴 기반 질문 연습"
+              : "오늘의 질문 연습"}
           </p>
           <h1 className="text-white font-bold text-base leading-tight">
-            {isPatternPractice && "30초 답변 워밍업"}
-            {!isPatternPractice && question?.category === "intro" && "자기소개"}
-            {!isPatternPractice && question?.category === "career" && "경력 설명"}
-            {!isPatternPractice && question?.category === "leadership" && "리더십"}
-            {!isPatternPractice && question?.category === "tech" && "기술 프로젝트"}
-            {!isPatternPractice && question?.category === "failure" && "실패/갈등"}
+            {isWeeklyPractice && "이번 주 3분 리허설"}
+            {isPatternPractice && !isWeeklyPractice && "30초 답변 워밍업"}
+            {!isPatternPractice && !isWeeklyPractice && question?.category === "intro" && "자기소개"}
+            {!isPatternPractice && !isWeeklyPractice && question?.category === "career" && "경력 설명"}
+            {!isPatternPractice && !isWeeklyPractice && question?.category === "leadership" && "리더십"}
+            {!isPatternPractice && !isWeeklyPractice && question?.category === "tech" && "기술 프로젝트"}
+            {!isPatternPractice && !isWeeklyPractice && question?.category === "failure" && "실패/갈등"}
             {!question?.category && "로딩 중..."}
           </h1>
         </div>
@@ -264,7 +284,7 @@ function PracticeContent() {
         </div>
       )}
 
-      {patternSet && (stage === "idle" || stage === "recording") && (
+      {patternSet && !isWeeklyPractice && (stage === "idle" || stage === "recording") && (
         <div className="bg-indigo-950 border border-indigo-800 rounded-2xl p-5 mb-4">
           <div className="flex items-center justify-between gap-3 mb-3">
             <div>
@@ -288,6 +308,32 @@ function PracticeContent() {
           <p className="text-slate-400 text-xs leading-relaxed mt-3 border-t border-indigo-800 pt-3">
             {patternSet.miniFocusKo}
           </p>
+        </div>
+      )}
+
+      {weeklySummary && isWeeklyPractice && (stage === "idle" || stage === "recording") && (
+        <div className="bg-emerald-950/60 border border-emerald-800/50 rounded-2xl p-5 mb-4">
+          <div className="flex items-center justify-between gap-3 mb-3">
+            <div>
+              <p className="text-emerald-300 text-xs font-medium">이번 주 30초 답변 구조</p>
+              <p className="text-white text-sm font-semibold mt-0.5">
+                {weeklySummary.weekStart} ~ {weeklySummary.weekEnd}
+              </p>
+            </div>
+            <Link href="/patterns" className="tap-target flex items-center text-emerald-300 text-xs shrink-0">
+              전체 보기
+            </Link>
+          </div>
+          <div className="flex flex-col gap-2">
+            {weeklySummary.answerStructure.map((step) => (
+              <p key={step.label} className="text-slate-100 text-sm leading-relaxed">
+                <span className="text-emerald-300 text-xs font-semibold mr-2">
+                  {step.label}
+                </span>{" "}
+                {step.sentence}
+              </p>
+            ))}
+          </div>
         </div>
       )}
 

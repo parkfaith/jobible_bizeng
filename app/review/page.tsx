@@ -1,33 +1,58 @@
 import Link from "next/link";
-import { desc, eq } from "drizzle-orm";
+import { desc, eq, or } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { dailyPatterns } from "@/lib/db/schema";
-import { DAILY_PATTERN_SET_TYPE, getKstDate, type DailyPatternSet } from "@/lib/pattern-set";
+import {
+  DAILY_PATTERN_SET_TYPE,
+  WEEKLY_SUMMARY_SET_TYPE,
+  getKstDate,
+  type DailyPatternSet,
+  type WeeklySummarySet,
+} from "@/lib/pattern-set";
 
 export const dynamic = "force-dynamic";
 
-interface PatternReviewItem {
-  id: number;
-  date: string;
-  data: DailyPatternSet;
-}
+type ReviewItem =
+  | { kind: "daily"; id: number; date: string; data: DailyPatternSet }
+  | { kind: "weekly"; id: number; date: string; data: WeeklySummarySet };
 
 export default async function ReviewPage() {
   const rows = await db
     .select()
     .from(dailyPatterns)
-    .where(eq(dailyPatterns.patternType, DAILY_PATTERN_SET_TYPE))
+    .where(or(eq(dailyPatterns.patternType, DAILY_PATTERN_SET_TYPE), eq(dailyPatterns.patternType, WEEKLY_SUMMARY_SET_TYPE)))
     .orderBy(desc(dailyPatterns.date))
     .limit(60);
 
-  const items: PatternReviewItem[] = rows.map((row) => ({
-    id: row.id,
-    date: row.date,
-    data: JSON.parse(row.content) as DailyPatternSet,
-  }));
-  const dateSet = new Set(items.map((item) => item.date));
+  const items: ReviewItem[] = rows.map((row) => {
+    if (row.patternType === WEEKLY_SUMMARY_SET_TYPE) {
+      return {
+        kind: "weekly",
+        id: row.id,
+        date: row.date,
+        data: JSON.parse(row.content) as WeeklySummarySet,
+      };
+    }
+    return {
+      kind: "daily",
+      id: row.id,
+      date: row.date,
+      data: JSON.parse(row.content) as DailyPatternSet,
+    };
+  });
+
+  const dailyDateSet = new Set(
+    items.filter((i) => i.kind === "daily").map((i) => i.date)
+  );
+  const weeklyDateSet = new Set(
+    items.filter((i) => i.kind === "weekly").map((i) => i.date)
+  );
+
   const todayKst = getKstDate();
-  const monthDays = buildMonthDays(dateSet, todayKst);
+  const monthDays = buildMonthDays(dailyDateSet, weeklyDateSet, todayKst);
+
+  const dailyCount = dailyDateSet.size;
+  const weeklyCount = weeklyDateSet.size;
 
   return (
     <main className="min-h-screen bg-slate-950 flex flex-col max-w-md mx-auto px-4 pt-7 bottom-safe">
@@ -47,7 +72,16 @@ export default async function ReviewPage() {
       <section className="bg-slate-800 border border-slate-700 rounded-2xl p-4 mb-5">
         <div className="flex items-center justify-between mb-3">
           <p className="text-white text-sm font-semibold">{formatMonth(todayKst)}</p>
-          <p className="text-slate-500 text-xs">저장 {items.length}일</p>
+          <div className="flex items-center gap-3">
+            <span className="flex items-center gap-1 text-slate-500 text-xs">
+              <span className="w-2 h-2 rounded-full bg-amber-300 inline-block" />
+              일별 {dailyCount}
+            </span>
+            <span className="flex items-center gap-1 text-slate-500 text-xs">
+              <span className="w-2 h-2 rounded-full bg-emerald-300 inline-block" />
+              주간 {weeklyCount}
+            </span>
+          </div>
         </div>
         <div className="grid grid-cols-7 gap-1.5 mb-2">
           {["일", "월", "화", "수", "목", "금", "토"].map((day) => (
@@ -62,13 +96,16 @@ export default async function ReviewPage() {
               <div
                 key={day.date}
                 className={`aspect-square rounded-xl flex flex-col items-center justify-center border ${
-                  day.hasPattern
+                  day.hasWeekly
+                    ? "bg-emerald-500/15 border-emerald-500/30 text-white"
+                    : day.hasPattern
                     ? "bg-amber-500/15 border-amber-500/30 text-white"
                     : "bg-slate-900 border-slate-800 text-slate-600"
                 }`}
               >
                 <span className="text-xs font-medium">{day.label}</span>
-                {day.hasPattern && <span className="mt-1 w-1.5 h-1.5 rounded-full bg-amber-300" />}
+                {day.hasWeekly && <span className="mt-1 w-1.5 h-1.5 rounded-full bg-emerald-300" />}
+                {!day.hasWeekly && day.hasPattern && <span className="mt-1 w-1.5 h-1.5 rounded-full bg-amber-300" />}
               </div>
             ) : (
               <div key={`empty-${index}`} className="aspect-square" />
@@ -79,7 +116,7 @@ export default async function ReviewPage() {
 
       <section>
         <div className="flex items-center justify-between mb-3">
-          <h2 className="text-slate-300 text-sm font-semibold">최근 복습 패턴</h2>
+          <h2 className="text-slate-300 text-sm font-semibold">복습 목록</h2>
           <Link href="/patterns" className="tap-target flex items-center text-indigo-400 text-xs">
             오늘 패턴
           </Link>
@@ -92,39 +129,13 @@ export default async function ReviewPage() {
           </div>
         ) : (
           <div className="flex flex-col gap-3">
-            {items.map((item) => (
-              <details
-                key={item.id}
-                className="bg-slate-800 border border-slate-700 rounded-2xl p-4"
-              >
-                <summary className="cursor-pointer list-none">
-                  <div className="flex items-start gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-slate-700 flex items-center justify-center text-lg shrink-0">
-                      📌
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="text-slate-500 text-xs">{formatDate(item.date)}</p>
-                      <p className="text-white text-sm font-semibold line-clamp-1">
-                        {item.data.topic}
-                      </p>
-                      <p className="text-slate-400 text-xs line-clamp-2 mt-1">
-                        {item.data.exercise.question}
-                      </p>
-                    </div>
-                  </div>
-                </summary>
-                <div className="mt-4 border-t border-slate-700 pt-3 flex flex-col gap-2">
-                  {item.data.patterns.map((pattern, index) => (
-                    <p key={pattern.sentence} className="text-slate-200 text-sm leading-relaxed">
-                      <span className="text-amber-300 text-xs font-semibold mr-2">
-                        {index + 1}
-                      </span>
-                      {pattern.sentence}
-                    </p>
-                  ))}
-                </div>
-              </details>
-            ))}
+            {items.map((item) =>
+              item.kind === "weekly" ? (
+                <WeeklyReviewCard key={item.id} item={item} />
+              ) : (
+                <DailyReviewCard key={item.id} item={item} />
+              )
+            )}
           </div>
         )}
       </section>
@@ -155,18 +166,101 @@ export default async function ReviewPage() {
   );
 }
 
-function buildMonthDays(dateSet: Set<string>, todayKst: string) {
+function DailyReviewCard({ item }: { item: Extract<ReviewItem, { kind: "daily" }> }) {
+  return (
+    <details className="bg-slate-800 border border-slate-700 rounded-2xl p-4">
+      <summary className="cursor-pointer list-none">
+        <div className="flex items-start gap-3">
+          <div className="w-10 h-10 rounded-xl bg-slate-700 flex items-center justify-center text-lg shrink-0">
+            📌
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-slate-500 text-xs">{formatDate(item.date)}</p>
+            <p className="text-white text-sm font-semibold line-clamp-1">{item.data.topic}</p>
+            <p className="text-slate-400 text-xs line-clamp-2 mt-1">{item.data.exercise.question}</p>
+          </div>
+        </div>
+      </summary>
+      <div className="mt-4 border-t border-slate-700 pt-3 flex flex-col gap-2">
+        {item.data.patterns.map((pattern, index) => (
+          <p key={pattern.sentence} className="text-slate-200 text-sm leading-relaxed">
+            <span className="text-amber-300 text-xs font-semibold mr-2">{index + 1}</span>
+            {pattern.sentence}
+          </p>
+        ))}
+      </div>
+    </details>
+  );
+}
+
+function WeeklyReviewCard({ item }: { item: Extract<ReviewItem, { kind: "weekly" }> }) {
+  return (
+    <details className="bg-slate-800 border border-emerald-800/40 rounded-2xl p-4">
+      <summary className="cursor-pointer list-none">
+        <div className="flex items-start gap-3">
+          <div className="w-10 h-10 rounded-xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-lg shrink-0">
+            📋
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-emerald-400 text-xs font-medium">주간 요약 — {formatDate(item.date)}</p>
+            <p className="text-white text-sm font-semibold line-clamp-1">
+              {item.data.weekStart} ~ {item.data.weekEnd}
+            </p>
+            <p className="text-slate-400 text-xs line-clamp-2 mt-1">{item.data.rehearsalQuestion}</p>
+          </div>
+        </div>
+      </summary>
+      <div className="mt-4 border-t border-slate-700 pt-3 flex flex-col gap-3">
+        <div>
+          <p className="text-slate-500 text-xs mb-2">이번 주 핵심 패턴</p>
+          {item.data.corePatterns.map((p, i) => (
+            <p key={i} className="text-slate-200 text-sm leading-relaxed mb-1">
+              <span className="text-emerald-300 text-xs font-semibold mr-2">{i + 1}</span>
+              {p.sentence}
+            </p>
+          ))}
+        </div>
+        <div className="bg-amber-950/60 border border-amber-800/40 rounded-xl px-3 py-2.5">
+          <p className="text-amber-400 text-xs font-medium mb-1">고칠 점</p>
+          <p className="text-amber-100 text-sm leading-relaxed">{item.data.fixThis}</p>
+        </div>
+        <Link
+          href="/practice?source=weekly"
+          className="tap-target block w-full py-3 rounded-xl bg-emerald-700 text-white text-center text-sm font-semibold"
+        >
+          리허설 다시 하기
+        </Link>
+      </div>
+    </details>
+  );
+}
+
+function buildMonthDays(
+  dailyDateSet: Set<string>,
+  weeklyDateSet: Set<string>,
+  todayKst: string
+) {
   const year = parseInt(todayKst.slice(0, 4), 10);
   const month = parseInt(todayKst.slice(5, 7), 10) - 1;
   const firstDay = new Date(year, month, 1);
   const lastDay = new Date(year, month + 1, 0);
-  const days: Array<{ date: string; label: number; hasPattern: boolean } | null> = [];
+  const days: Array<{
+    date: string;
+    label: number;
+    hasPattern: boolean;
+    hasWeekly: boolean;
+  } | null> = [];
 
   for (let i = 0; i < firstDay.getDay(); i += 1) days.push(null);
 
   for (let day = 1; day <= lastDay.getDate(); day += 1) {
     const date = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-    days.push({ date, label: day, hasPattern: dateSet.has(date) });
+    days.push({
+      date,
+      label: day,
+      hasPattern: dailyDateSet.has(date),
+      hasWeekly: weeklyDateSet.has(date),
+    });
   }
 
   return days;
