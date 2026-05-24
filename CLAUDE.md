@@ -105,7 +105,11 @@ npm run db:studio    # Drizzle Studio (DB 브라우저)
 | `answer_notes` | 최종 암기용 답변 + 핵심 표현 |
 | `daily_patterns` | 오늘의 질문·표현 캐시 — `patternType`으로 구분 (`daily_question` / `daily_expression`) |
 
-## 현재 상태 (2026-05-21)
+## 배포 방식
 
-MVP 전체 완료 + 오늘의 답변 패턴세트 + PWA 모바일 UX 보강 완료. GitHub 푸시 완료.  
-다음 작업 후보: Vercel 배포, iOS 실기기 테스트, 프로필 수정 화면.
+GitHub `master` 브랜치에 푸시하면 Vercel에서 자동으로 프로덕션 배포된다. 별도 배포 작업 불필요.
+
+## 현재 상태 (2026-05-25)
+
+비즈니스 영어 4개 시나리오 + 주 3회 가드레일 + 주말 요약 콘텐츠 + 한국어 해석 tap-to-reveal 완료.  
+다음 작업 후보: iOS 실기기 테스트, 프로필 수정 화면.
