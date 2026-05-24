@@ -829,3 +829,88 @@ npm run dev
 
 - 실제 iPhone Safari 또는 설치형 PWA에서 하단 네비게이션 5개 메뉴와 상단 뒤로가기 버튼을 반복 탭해 반응성을 확인한다.
 - 특히 `/notes`, `/review`, `/stats`처럼 서버 데이터를 읽는 화면에서 첫 탭 후 전환 피드백이 바로 보이는지 확인한다.
+
+## 21. 현재 인계 상태 (2026-05-25, 최종 업데이트)
+
+다른 컴퓨터에서 이어갈 때 기준:
+
+- 최신 `master` 커밋: `b5df67e docs: update CLAUDE.md — add Vercel auto-deploy note`
+- GitHub 푸시 완료 → Vercel 자동배포 완료 (GitHub master 푸시 = 배포 완료, 별도 작업 불필요)
+- 작업 트리는 clean 상태
+
+### 배포 방식 확인
+
+GitHub `master` 브랜치에 푸시하면 Vercel에서 자동으로 프로덕션 배포된다. 앞으로 별도 배포 명령은 필요하지 않다.
+
+### 다른 컴퓨터에서 시작할 때
+
+외장하드에 코드가 있으므로 `git pull`이 아니라 해당 경로에서 바로 실행한다.
+
+```bash
+# .env.local 없으면 .env.example 참고해서 생성
+npm install   # package.json 변경이 있을 때만
+npm run dev
+```
+
+### 2026-05-24~25 작업 전체 요약
+
+**주말 요약 콘텐츠 (Weekly Summary)**
+
+- `WeeklySummarySet` 타입, `WEEKLY_SUMMARY_SET_SCHEMA` — `lib/pattern-set.ts`
+- `/api/patterns/weekly` — GET(캐시 조회/자동생성, `?date=YYYY-MM-DD` 히스토리 조회), POST(재생성 주 2회 제한)
+- `WeeklySummaryCard`, `WeeklySummaryFetcher` 신규 컴포넌트
+- 홈 화면: 평일→패턴 카드, 주말→주간 요약 카드
+- `/patterns`: 평일→DailyView, 주말→WeeklyView
+- `/review`: 에메랄드 점으로 주간 요약 표시, `WeeklyReviewCard`
+- `/practice?source=weekly`: 리허설 질문 + 30초 답변 구조로 연습
+- 캐시 키: 토요일 KST 날짜 (`daily_patterns` 테이블, `patternType="weekly_summary_set"`)
+
+**비즈니스 영어 4개 시나리오**
+
+- `lib/scenarios.ts` 신규: `ScenarioId`, `Scenario`, `buildSystemPrompt()`, `getOpeningInstruction()`
+- 시나리오: `interview` / `executive_briefing` (CFO) / `cross_functional` (Head of Ops) / `global_team` (시니어 팀원)
+- 각 시나리오별 Realtime 시스템 프롬프트 — 면접 중 코칭 없이 캐릭터 유지
+- `/practice/interview`: 시나리오 선택 stage 추가 (2×2 그리드), 시나리오별 브리핑 화면
+
+**주 3회 세션 가드레일**
+
+- `lib/constants.ts`: `WEEKLY_SESSION_LIMIT = 3`
+- `/api/realtime-token`: 토큰 발급 전 이번 주 면접 세션 수 체크, 초과 시 429 반환
+- `/api/sessions?week=interview`: 주간 면접 횟수 조회 엔드포인트 신규
+- 시나리오 선택 화면: "이번 주 N/3회 사용" 표시, 초과 시 카드 비활성화
+
+**한국어 해석 tap-to-reveal**
+
+- `RevealKo` 컴포넌트 신규 (`components/RevealKo.tsx`)
+  - 기본: "해석 보기 ▾" 버튼만 표시
+  - 탭 시: 한국어 번역 펼침 / 다시 탭 시 "접기 ▴"로 숨김
+  - `text` prop이 없으면(구형 캐시 데이터) 렌더링 안 함
+- `DailyPatternSet` 신규 필드: `exercise.questionKo`, `exercise.structure[].sentenceKo`
+  - 기존 `meaningKo`(패턴 문장 번역)도 항상 표시 → tap-to-reveal로 전환
+- `WeeklySummarySet` 신규 필드: `corePatterns[].sentenceKo`, `keyQuestionsKo[]`, `readySentencesKo[]`, `rehearsalQuestionKo`, `answerStructure[].sentenceKo`
+- 적용 위치: `PatternSetCard`, `WeeklySummaryCard`, `/patterns` DailyView, `/patterns` WeeklyView
+- **주의**: 기존 캐시 데이터는 Ko 필드가 없으므로 "해석 보기" 버튼이 안 보임. `/patterns`에서 "다시 생성"을 누르면 번역 포함 데이터로 교체됨
+
+**기타 수정**
+
+- 로그인 성공 후 전체 화면 로딩 오버레이 (`navigating` 상태, 스피너 + "홈 화면을 여는 중...")
+- Next.js 개발 모드 N 아이콘 제거 (`devIndicators: false` in `next.config.ts`)
+- `WEEKLY_SESSION_LIMIT`을 route 파일 export에서 `lib/constants.ts`로 이동 (Next.js route 파일은 HTTP 핸들러만 export 가능)
+- Codex 코드리뷰 반영: weekly GET에 `?date=` 파라미터 + `isDateString()` 유효성 검사 추가
+
+### 새로 생긴 파일
+
+| 파일 | 역할 |
+|---|---|
+| `lib/scenarios.ts` | 4개 시나리오 정의 + Realtime 시스템 프롬프트 |
+| `lib/constants.ts` | 공유 상수 (`WEEKLY_SESSION_LIMIT = 3`) |
+| `app/api/patterns/weekly/route.ts` | 주간 요약 GET/POST API |
+| `components/RevealKo.tsx` | 한국어 해석 tap-to-reveal 컴포넌트 |
+| `components/WeeklySummaryCard.tsx` | 홈 화면 주간 요약 카드 |
+| `components/WeeklySummaryFetcher.tsx` | 주간 요약 클라이언트 fetcher |
+
+### 다음 작업 후보
+
+1. **iOS 실기기 테스트** — iPhone/Safari 또는 설치형 PWA에서 전체 흐름 확인
+2. **프로필 수정 화면** (`/profile`) — 온보딩 이후 목표 포지션, 프로젝트 등 수정 기능
+3. **기존 캐시 데이터 Ko 필드 보완** — `/patterns`에서 "다시 생성" 으로 번역 포함 데이터 교체
