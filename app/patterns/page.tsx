@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import type { DailyPatternSet, WeeklySummarySet } from "@/lib/pattern-set";
+import RevealKo from "@/components/RevealKo";
 
 function isWeekendKstClient() {
   const kst = new Date(Date.now() + 9 * 60 * 60 * 1000);
@@ -122,6 +123,7 @@ function WeeklyView() {
               <div key={i} className="bg-slate-800 border border-slate-700 rounded-2xl p-4">
                 <p className="text-emerald-300 text-xs font-semibold mb-2">Pattern #{i + 1} — {p.from}</p>
                 <p className="text-white text-sm leading-relaxed font-medium">{p.sentence}</p>
+                <RevealKo text={p.sentenceKo} />
               </div>
             ))}
           </div>
@@ -133,6 +135,7 @@ function WeeklyView() {
               <div key={i} className="bg-slate-800 border border-slate-700 rounded-2xl p-4">
                 <p className="text-indigo-300 text-xs font-semibold mb-1">Q{i + 1}</p>
                 <p className="text-slate-100 text-sm leading-relaxed">{q}</p>
+                <RevealKo text={data.keyQuestionsKo?.[i]} />
               </div>
             ))}
           </div>
@@ -151,7 +154,10 @@ function WeeklyView() {
                 <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-indigo-500/20 text-indigo-300 text-[11px] font-semibold mt-0.5">
                   {i + 1}
                 </span>
-                <p className="text-white text-sm leading-relaxed">{s}</p>
+                <div className="min-w-0">
+                  <p className="text-white text-sm leading-relaxed">{s}</p>
+                  <RevealKo text={data.readySentencesKo?.[i]} />
+                </div>
               </div>
             ))}
           </div>
@@ -160,13 +166,17 @@ function WeeklyView() {
         <WeeklySection title="주말 3분 리허설">
           <div className="bg-indigo-950 border border-indigo-800 rounded-2xl p-4">
             <p className="text-indigo-200 text-xs mb-2">질문</p>
-            <p className="text-white text-sm leading-relaxed mb-4">{data.rehearsalQuestion}</p>
-            <p className="text-indigo-300 text-xs font-medium mb-2">30초 답변 구조</p>
+            <p className="text-white text-sm leading-relaxed">{data.rehearsalQuestion}</p>
+            <RevealKo text={data.rehearsalQuestionKo} />
+            <p className="text-indigo-300 text-xs font-medium mb-2 mt-4">30초 답변 구조</p>
             <div className="flex flex-col gap-2">
               {data.answerStructure.map((step) => (
-                <div key={step.label} className="grid grid-cols-[92px_1fr] gap-2">
+                <div key={step.label} className="grid grid-cols-[92px_1fr] gap-2 items-start">
                   <span className="text-indigo-300 text-xs font-semibold pt-0.5">{step.label}</span>
-                  <span className="text-slate-100 text-sm leading-relaxed">{step.sentence}</span>
+                  <div>
+                    <span className="text-slate-100 text-sm leading-relaxed">{step.sentence}</span>
+                    <RevealKo text={step.sentenceKo} />
+                  </div>
                 </div>
               ))}
             </div>
@@ -414,7 +424,7 @@ function DailyView() {
                     <p className="text-white text-sm leading-relaxed font-medium">
                       {pattern.sentence}
                     </p>
-                    <p className="text-slate-400 text-xs mt-2">{pattern.meaningKo}</p>
+                    <RevealKo text={pattern.meaningKo} />
                     <p className="text-slate-300 text-xs leading-relaxed mt-3 border-t border-slate-700 pt-3">
                       {pattern.usagePointKo}
                     </p>
@@ -576,16 +586,20 @@ function DailyView() {
             ) : (
               <>
                 <p className="text-indigo-200 text-xs mb-2">Question</p>
-                <p className="text-white text-sm leading-relaxed mb-4">{d.exercise.question}</p>
-                <div className="flex flex-col gap-2">
+                <p className="text-white text-sm leading-relaxed">{d.exercise.question}</p>
+                <RevealKo text={d.exercise.questionKo} />
+                <div className="flex flex-col gap-2 mt-4">
                   {d.exercise.structure.map((step) => (
-                    <div key={step.label} className="grid grid-cols-[92px_1fr] gap-2">
+                    <div key={step.label} className="grid grid-cols-[92px_1fr] gap-2 items-start">
                       <span className="text-indigo-300 text-xs font-semibold pt-0.5">
                         {step.label}
                       </span>
-                      <span className="text-slate-100 text-sm leading-relaxed">
-                        {step.sentence}
-                      </span>
+                      <div>
+                        <span className="text-slate-100 text-sm leading-relaxed">
+                          {step.sentence}
+                        </span>
+                        <RevealKo text={step.sentenceKo} />
+                      </div>
                     </div>
                   ))}
                 </div>

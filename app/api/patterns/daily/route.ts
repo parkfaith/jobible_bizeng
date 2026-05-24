@@ -115,8 +115,10 @@ shadowing:
 
 exercise:
 - question: A realistic English interview question that would naturally elicit the 3 pattern sentences.
+- questionKo: Korean translation of the question. Direct and natural, not academic.
 - structure: Exactly 4 steps with these labels in order: Situation, Action, Execution, Result.
-  Each step's sentence should be directly usable as spoken English in the answer.
+  Each step's sentence: directly usable spoken English in the answer.
+  Each step's sentenceKo: natural Korean translation of that sentence.
 
 miniFocusKo: A quick-drill instruction. Format: "위 3문장을 소리 내어 3번 읽으세요. 목표: [구체적인 수행 기준 — 예: 머뭇거림 없이 실제 프로젝트 경험처럼 자연스럽게]"
 

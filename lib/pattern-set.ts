@@ -19,10 +19,12 @@ export interface ShadowingTip {
 export interface StructureStep {
   label: string;
   sentence: string;
+  sentenceKo?: string;
 }
 
 export interface PatternExercise {
   question: string;
+  questionKo?: string;
   structure: StructureStep[];
 }
 
@@ -41,14 +43,17 @@ export const DAILY_PATTERN_SET_TYPE = "daily_pattern_set";
 export const WEEKLY_SUMMARY_SET_TYPE = "weekly_summary_set";
 
 export interface WeeklySummarySet {
-  weekStart: string; // Monday KST date (YYYY-MM-DD)
-  weekEnd: string;   // Friday KST date
-  corePatterns: Array<{ sentence: string; from: string }>; // 3 items
-  keyQuestions: string[];   // 3 questions from the week
-  fixThis: string;          // 1 correction focus
-  readySentences: string[]; // 5 immediately usable sentences
+  weekStart: string;
+  weekEnd: string;
+  corePatterns: Array<{ sentence: string; sentenceKo?: string; from: string }>;
+  keyQuestions: string[];
+  keyQuestionsKo?: string[];
+  fixThis: string;
+  readySentences: string[];
+  readySentencesKo?: string[];
   rehearsalQuestion: string;
-  answerStructure: StructureStep[]; // 4 steps
+  rehearsalQuestionKo?: string;
+  answerStructure: StructureStep[];
   source: "openai" | "manual";
 }
 
@@ -92,9 +97,12 @@ export const WEEKLY_SUMMARY_SET_SCHEMA = {
     "weekEnd",
     "corePatterns",
     "keyQuestions",
+    "keyQuestionsKo",
     "fixThis",
     "readySentences",
+    "readySentencesKo",
     "rehearsalQuestion",
+    "rehearsalQuestionKo",
     "answerStructure",
   ],
   properties: {
@@ -107,14 +115,21 @@ export const WEEKLY_SUMMARY_SET_SCHEMA = {
       items: {
         type: "object",
         additionalProperties: false,
-        required: ["sentence", "from"],
+        required: ["sentence", "sentenceKo", "from"],
         properties: {
           sentence: { type: "string" },
+          sentenceKo: { type: "string" },
           from: { type: "string" },
         },
       },
     },
     keyQuestions: {
+      type: "array",
+      minItems: 3,
+      maxItems: 3,
+      items: { type: "string" },
+    },
+    keyQuestionsKo: {
       type: "array",
       minItems: 3,
       maxItems: 3,
@@ -127,7 +142,14 @@ export const WEEKLY_SUMMARY_SET_SCHEMA = {
       maxItems: 5,
       items: { type: "string" },
     },
+    readySentencesKo: {
+      type: "array",
+      minItems: 5,
+      maxItems: 5,
+      items: { type: "string" },
+    },
     rehearsalQuestion: { type: "string" },
+    rehearsalQuestionKo: { type: "string" },
     answerStructure: {
       type: "array",
       minItems: 4,
@@ -135,10 +157,11 @@ export const WEEKLY_SUMMARY_SET_SCHEMA = {
       items: {
         type: "object",
         additionalProperties: false,
-        required: ["label", "sentence"],
+        required: ["label", "sentence", "sentenceKo"],
         properties: {
           label: { type: "string" },
           sentence: { type: "string" },
+          sentenceKo: { type: "string" },
         },
       },
     },
@@ -208,9 +231,10 @@ export const DAILY_PATTERN_SET_SCHEMA = {
     exercise: {
       type: "object",
       additionalProperties: false,
-      required: ["question", "structure"],
+      required: ["question", "questionKo", "structure"],
       properties: {
         question: { type: "string" },
+        questionKo: { type: "string" },
         structure: {
           type: "array",
           minItems: 4,
@@ -218,10 +242,11 @@ export const DAILY_PATTERN_SET_SCHEMA = {
           items: {
             type: "object",
             additionalProperties: false,
-            required: ["label", "sentence"],
+            required: ["label", "sentence", "sentenceKo"],
             properties: {
               label: { type: "string" },
               sentence: { type: "string" },
+              sentenceKo: { type: "string" },
             },
           },
         },

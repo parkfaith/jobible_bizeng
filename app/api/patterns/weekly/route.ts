@@ -104,11 +104,15 @@ weekEnd: "${end}"
 corePatterns (exactly 3):
 - Select or synthesize the 3 most important, reusable interview sentences from this week.
 - sentence: Complete, interview-ready English sentence. Senior leader tone.
+- sentenceKo: Natural Korean translation of the sentence. Direct, not academic.
 - from: Short label like "Day 1 topic" or the topic name it came from.
 
 keyQuestions (exactly 3):
 - Real interview questions that cover this week's themes.
 - Each question should be answerable using this week's patterns.
+
+keyQuestionsKo (exactly 3):
+- Korean translations of the 3 key questions, in the same order.
 
 fixThis (1 item):
 - The single most important improvement area for Korean senior leaders based on this week's content.
@@ -119,15 +123,22 @@ readySentences (exactly 5):
 - 5 English sentences the candidate can use immediately in a real interview.
 - Each sentence should be polished, concise, and cover a different aspect of this week's topics.
 
+readySentencesKo (exactly 5):
+- Korean translations of the 5 ready sentences, in the same order.
+
 rehearsalQuestion (1 item):
 - A single English interview question that synthesizes this week's key themes.
 - Answerable in about 30–60 seconds.
 - Should feel like a real question from an AI Director hiring panel.
 
+rehearsalQuestionKo:
+- Korean translation of the rehearsal question.
+
 answerStructure (exactly 4 steps):
 - A 30-second answer structure for the rehearsalQuestion.
 - Labels must be exactly: Situation, Action, Execution, Result
-- Each sentence should be directly speakable English using this week's vocabulary.
+- Each step's sentence: directly speakable English using this week's vocabulary.
+- Each step's sentenceKo: natural Korean translation of that sentence.
 
 === STYLE RULES ===
 - Korean text: direct and practical. No academic or encouraging tone.

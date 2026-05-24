@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import type { WeeklySummarySet } from "@/lib/pattern-set";
+import RevealKo from "@/components/RevealKo";
 
 export default function WeeklySummaryCard({ data }: { data: WeeklySummarySet }) {
   return (
@@ -29,7 +30,10 @@ export default function WeeklySummaryCard({ data }: { data: WeeklySummarySet }) 
               <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-300 text-[11px] font-semibold">
                 {i + 1}
               </span>
-              <p className="text-slate-100 text-sm leading-relaxed line-clamp-2">{p.sentence}</p>
+              <div className="min-w-0">
+                <p className="text-slate-100 text-sm leading-relaxed">{p.sentence}</p>
+                <RevealKo text={p.sentenceKo} />
+              </div>
             </div>
           ))}
         </div>

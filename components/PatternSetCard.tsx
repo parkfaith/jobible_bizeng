@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import type { DailyPatternSet } from "@/lib/pattern-set";
+import RevealKo from "@/components/RevealKo";
 
 export default function PatternSetCard({ data }: { data: DailyPatternSet }) {
   return (
@@ -26,18 +27,18 @@ export default function PatternSetCard({ data }: { data: DailyPatternSet }) {
               <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-amber-500/15 text-amber-300 text-[11px] font-semibold">
                 {index + 1}
               </span>
-              <p className="text-slate-100 text-sm leading-relaxed line-clamp-2">
-                {pattern.sentence}
-              </p>
+              <div className="min-w-0">
+                <p className="text-slate-100 text-sm leading-relaxed">{pattern.sentence}</p>
+                <RevealKo text={pattern.meaningKo} />
+              </div>
             </div>
           ))}
         </div>
 
         <div className="bg-slate-900 rounded-xl px-3 py-2.5 mb-3">
           <p className="text-slate-500 text-xs mb-1">오늘의 질문</p>
-          <p className="text-slate-200 text-sm leading-relaxed line-clamp-2">
-            {data.exercise.question}
-          </p>
+          <p className="text-slate-200 text-sm leading-relaxed">{data.exercise.question}</p>
+          <RevealKo text={data.exercise.questionKo} />
         </div>
 
         <div className="flex gap-2">
