@@ -1,6 +1,6 @@
 export const maxDuration = 60;
 
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { and, eq, gte, like, lte } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { dailyPatterns, profile } from "@/lib/db/schema";
@@ -26,6 +26,10 @@ function extractResponseText(data: {
     }
   }
   return "";
+}
+
+function isDateString(value: string | null): value is string {
+  return /^\d{4}-\d{2}-\d{2}$/.test(value ?? "");
 }
 
 async function generateWeeklySummary(satDate: string): Promise<WeeklySummarySet> {
@@ -225,12 +229,27 @@ async function recordWeeklyRegen(satDate: string) {
   });
 }
 
-export async function GET() {
-  const satDate = getWeekSaturdayDate();
+export async function GET(req: NextRequest) {
+  const requestedDate = req.nextUrl.searchParams.get("date");
+  if (requestedDate && !isDateString(requestedDate)) {
+    return NextResponse.json(
+      { error: "잘못된 주간 요약 날짜입니다." },
+      { status: 400, headers: { "Cache-Control": "no-store" } }
+    );
+  }
+
+  const satDate = requestedDate ?? getWeekSaturdayDate();
 
   const cached = await getCachedWeeklySummary(satDate);
   if (cached) {
     return NextResponse.json(cached, { headers: { "Cache-Control": "no-store" } });
+  }
+
+  if (requestedDate) {
+    return NextResponse.json(
+      { error: "해당 날짜의 주간 요약을 찾지 못했습니다." },
+      { status: 404, headers: { "Cache-Control": "no-store" } }
+    );
   }
 
   // Only auto-generate on weekends; on weekdays return 404 with hint
