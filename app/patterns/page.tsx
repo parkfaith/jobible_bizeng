@@ -643,18 +643,6 @@ function DailyView() {
                 <p className="text-slate-500 text-xs mt-1">날짜별로 쌓인 패턴을 캘린더에서 다시 봅니다.</p>
               </div>
             </Link>
-            <Link
-              href="/expressions"
-              className="flex items-center gap-3 bg-slate-800 border border-slate-700 rounded-2xl p-4 hover:bg-slate-700 transition-colors"
-            >
-              <div className="w-10 h-10 rounded-xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-lg shrink-0">
-                💬
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className="text-slate-300 text-sm font-semibold">오늘의 표현 카드</p>
-                <p className="text-slate-500 text-xs mt-1">핵심 비즈니스 영어 표현을 확인하고 수정합니다.</p>
-              </div>
-            </Link>
           </div>
         </Section>
       </div>

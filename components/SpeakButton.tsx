@@ -5,8 +5,18 @@ import { useCallback, useEffect, useRef, useState } from "react";
 // Stop any currently playing audio when a new one starts
 let currentAudio: HTMLAudioElement | null = null;
 
-// Session-level cache: text → blob URL
+// Session-level cache: text → blob URL (FIFO, max 30 entries)
 const audioCache = new Map<string, string>();
+const CACHE_MAX = 30;
+
+function setCached(text: string, url: string) {
+  if (audioCache.size >= CACHE_MAX) {
+    const oldest = audioCache.keys().next().value!;
+    URL.revokeObjectURL(audioCache.get(oldest)!);
+    audioCache.delete(oldest);
+  }
+  audioCache.set(text, url);
+}
 
 type State = "idle" | "loading" | "playing";
 
@@ -54,7 +64,7 @@ export default function SpeakButton({ text }: { text: string }) {
 
         const blob = await res.blob();
         url = URL.createObjectURL(blob);
-        audioCache.set(text, url);
+        setCached(text, url);
       }
 
       const audio = new Audio(url);

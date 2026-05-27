@@ -47,16 +47,13 @@ app/
     patterns/
       daily/route.ts          # GET — 패턴세트 조회/생성, POST — 다시 생성, PATCH — 수동 수정
       history/route.ts        # GET — 날짜별 저장 패턴 목록
-    expressions/daily/route.ts  # GET — GPT-4o 생성 + Turso 일별 캐시, PATCH — 수동 수정 (레거시)
     auth/login/route.ts       # POST — 비밀번호 인증
-  expressions/page.tsx        # 표현 카드 전체 보기 + 수정 UI (클라이언트, 레거시)
 components/
   RouteProgress.tsx           # 화면 전환 중 상단 진행바 + "화면을 여는 중..." (클라이언트)
   PwaInstallPrompt.tsx        # PWA 설치 안내 — Chrome/Android 설치 버튼, iOS 홈 화면 추가 안내
   PatternSetCard.tsx          # 홈 삽입용 패턴세트 요약 카드 (클라이언트)
   PatternSetFetcher.tsx       # 캐시 없을 때 클라이언트에서 패턴 API 호출
-  ExpressionCard.tsx          # 홈 삽입용 접힌 표현 카드 (클라이언트, 레거시)
-  ExpressionCardFetcher.tsx   # 캐시 없을 때 클라이언트에서 표현 API 호출 (레거시)
+  SpeakButton.tsx             # 패턴 문장 TTS 재생 버튼 (클라이언트)
 lib/
   pattern-set.ts              # DailyPatternSet 타입, getKstDate(), DAILY_PATTERN_SET_SCHEMA
   db/
@@ -109,7 +106,8 @@ npm run db:studio    # Drizzle Studio (DB 브라우저)
 
 GitHub `master` 브랜치에 푸시하면 Vercel에서 자동으로 프로덕션 배포된다. 별도 배포 작업 불필요.
 
-## 현재 상태 (2026-05-25)
+## 현재 상태 (2026-05-27)
 
-비즈니스 영어 4개 시나리오 + 주 3회 가드레일 + 주말 요약 콘텐츠 + 한국어 해석 tap-to-reveal 완료.  
+비즈니스 영어 4개 시나리오 + 주 3회 가드레일 + 주말 요약 콘텐츠 + 한국어 해석 tap-to-reveal + 패턴 TTS 완료.  
+레거시 expressions 기능 완전 삭제.  
 다음 작업 후보: iOS 실기기 테스트, 프로필 수정 화면.
