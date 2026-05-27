@@ -3,6 +3,7 @@
 import Link from "next/link";
 import type { DailyPatternSet } from "@/lib/pattern-set";
 import RevealKo from "@/components/RevealKo";
+import SpeakButton from "@/components/SpeakButton";
 
 export default function PatternSetCard({ data }: { data: DailyPatternSet }) {
   return (
@@ -27,8 +28,11 @@ export default function PatternSetCard({ data }: { data: DailyPatternSet }) {
               <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-amber-500/15 text-amber-300 text-[11px] font-semibold">
                 {index + 1}
               </span>
-              <div className="min-w-0">
-                <p className="text-slate-100 text-sm leading-relaxed">{pattern.sentence}</p>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-start gap-2">
+                  <p className="flex-1 text-slate-100 text-sm leading-relaxed">{pattern.sentence}</p>
+                  <SpeakButton text={pattern.sentence} />
+                </div>
                 <RevealKo text={pattern.meaningKo} />
               </div>
             </div>

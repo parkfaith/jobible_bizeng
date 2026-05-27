@@ -225,7 +225,7 @@ function WeeklyReviewCard({ item }: { item: Extract<ReviewItem, { kind: "weekly"
           <p className="text-amber-100 text-sm leading-relaxed">{item.data.fixThis}</p>
         </div>
         <Link
-          href="/practice?source=weekly"
+          href={`/practice?source=weekly&date=${item.date}`}
           className="tap-target block w-full py-3 rounded-xl bg-emerald-700 text-white text-center text-sm font-semibold"
         >
           리허설 다시 하기

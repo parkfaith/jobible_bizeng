@@ -54,6 +54,7 @@ function ScoreBar({ score, label }: { score: number; label: string }) {
 function PracticeContent() {
   const searchParams = useSearchParams();
   const source = searchParams.get("source") ?? "pattern";
+  const weeklyDate = searchParams.get("date");
   const isPatternPractice = source === "pattern";
   const isWeeklyPractice = source === "weekly";
 
@@ -72,12 +73,41 @@ function PracticeContent() {
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
+    return () => {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
+
+      const recorder = mediaRecorderRef.current;
+      if (recorder) {
+        recorder.ondataavailable = null;
+        recorder.onstop = null;
+        try {
+          if (recorder.state !== "inactive") recorder.stop();
+        } catch {
+          // The recorder may already be stopping during route transitions.
+        }
+        recorder.stream.getTracks().forEach((track) => track.stop());
+        mediaRecorderRef.current = null;
+      }
+      chunksRef.current = [];
+    };
+  }, []);
+
+  useEffect(() => {
+    const controller = new AbortController();
     let endpoint: string;
-    if (isWeeklyPractice) endpoint = "/api/patterns/weekly";
+    if (isWeeklyPractice) {
+      const params = new URLSearchParams();
+      if (weeklyDate) params.set("date", weeklyDate);
+      const query = params.toString();
+      endpoint = query ? `/api/patterns/weekly?${query}` : "/api/patterns/weekly";
+    }
     else if (isPatternPractice) endpoint = "/api/patterns/daily";
     else endpoint = "/api/questions/daily";
 
-    fetch(endpoint, { cache: "no-store" })
+    fetch(endpoint, { cache: "no-store", signal: controller.signal })
       .then((r) => r.json())
       .then((data) => {
         if (data.error) throw new Error(data.error);
@@ -102,8 +132,13 @@ function PracticeContent() {
         }
         setStage("idle");
       })
-      .catch(() => setError("질문을 불러오지 못했습니다. 잠시 후 다시 시도해주세요."));
-  }, [isPatternPractice, isWeeklyPractice]);
+      .catch((err) => {
+        if (err instanceof DOMException && err.name === "AbortError") return;
+        setError("질문을 불러오지 못했습니다. 잠시 후 다시 시도해주세요.");
+      });
+
+    return () => controller.abort();
+  }, [isPatternPractice, isWeeklyPractice, weeklyDate]);
 
   const startRecording = useCallback(async () => {
     setError("");
@@ -132,7 +167,10 @@ function PracticeContent() {
 
   const stopRecording = useCallback(() => {
     if (!mediaRecorderRef.current) return;
-    if (timerRef.current) clearInterval(timerRef.current);
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
 
 
     mediaRecorderRef.current.onstop = async () => {

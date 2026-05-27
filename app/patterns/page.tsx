@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import type { DailyPatternSet, WeeklySummarySet } from "@/lib/pattern-set";
 import RevealKo from "@/components/RevealKo";
+import SpeakButton from "@/components/SpeakButton";
 
 function isWeekendKstClient() {
   const kst = new Date(Date.now() + 9 * 60 * 60 * 1000);
@@ -122,7 +123,10 @@ function WeeklyView() {
             {data.corePatterns.map((p, i) => (
               <div key={i} className="bg-slate-800 border border-slate-700 rounded-2xl p-4">
                 <p className="text-emerald-300 text-xs font-semibold mb-2">Pattern #{i + 1} — {p.from}</p>
-                <p className="text-white text-sm leading-relaxed font-medium">{p.sentence}</p>
+                <div className="flex items-start gap-2">
+                  <p className="flex-1 text-white text-sm leading-relaxed font-medium">{p.sentence}</p>
+                  <SpeakButton text={p.sentence} />
+                </div>
                 <RevealKo text={p.sentenceKo} />
               </div>
             ))}
@@ -421,9 +425,12 @@ function DailyView() {
                     <p className="text-amber-300 text-xs font-semibold mb-2">
                       Practical Pattern #{index + 1}
                     </p>
-                    <p className="text-white text-sm leading-relaxed font-medium">
-                      {pattern.sentence}
-                    </p>
+                    <div className="flex items-start gap-2">
+                      <p className="flex-1 text-white text-sm leading-relaxed font-medium">
+                        {pattern.sentence}
+                      </p>
+                      <SpeakButton text={pattern.sentence} />
+                    </div>
                     <RevealKo text={pattern.meaningKo} />
                     <p className="text-slate-300 text-xs leading-relaxed mt-3 border-t border-slate-700 pt-3">
                       {pattern.usagePointKo}
