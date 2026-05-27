@@ -2,8 +2,25 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
-// Stop any currently playing audio when a new one starts
-let currentAudio: HTMLAudioElement | null = null;
+// Module-level singletons shared across all SpeakButton instances
+let activeAudio: HTMLAudioElement | null = null;
+let activeFetchCtrl: AbortController | null = null;
+// Callback to reset the currently loading/playing button's UI to idle
+let activeSetState: ((s: State) => void) | null = null;
+
+function stopActive() {
+  if (activeAudio) {
+    activeAudio.pause();
+    activeAudio.src = "";
+    activeAudio = null;
+  }
+  if (activeFetchCtrl) {
+    activeFetchCtrl.abort();
+    activeFetchCtrl = null;
+  }
+  activeSetState?.("idle");
+  activeSetState = null;
+}
 
 // Session-level cache: text → blob URL (FIFO, max 30 entries)
 const audioCache = new Map<string, string>();
@@ -18,6 +35,11 @@ function setCached(text: string, url: string) {
   audioCache.set(text, url);
 }
 
+// Minimal silent WAV — played synchronously on user tap to unlock iOS Safari
+// audio context before the async TTS fetch begins.
+const SILENT_WAV =
+  "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=";
+
 type State = "idle" | "loading" | "playing";
 
 export default function SpeakButton({ text }: { text: string }) {
@@ -31,24 +53,39 @@ export default function SpeakButton({ text }: { text: string }) {
         audio.pause();
         audio.src = "";
       }
+      // Clean up module-level references if this instance is the active one
+      if (activeSetState === setState) {
+        activeFetchCtrl?.abort();
+        activeFetchCtrl = null;
+        activeSetState = null;
+        activeAudio = null;
+      }
     };
   }, []);
 
   const handleClick = useCallback(async () => {
-    // Stop whatever is playing
-    if (currentAudio) {
-      currentAudio.pause();
-      currentAudio.src = "";
-      currentAudio = null;
-    }
+    // Ignore extra taps while already loading (prevents duplicate fetches)
+    if (state === "loading") return;
 
-    // If this button is playing, toggle it off
+    // Toggle off if this button is currently playing
     if (state === "playing") {
-      setState("idle");
+      stopActive();
       return;
     }
 
+    // Stop any other button that is loading or playing
+    stopActive();
+
     setState("loading");
+
+    // Unlock iOS Safari audio context synchronously from user gesture,
+    // before any await. Without this, audio.play() after a network fetch
+    // is rejected as not originating from a user gesture.
+    new Audio(SILENT_WAV).play().catch(() => {});
+
+    const ctrl = new AbortController();
+    activeFetchCtrl = ctrl;
+    activeSetState = setState;
 
     try {
       let url = audioCache.get(text);
@@ -58,6 +95,7 @@ export default function SpeakButton({ text }: { text: string }) {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ text }),
+          signal: ctrl.signal,
         });
 
         if (!res.ok) throw new Error("tts failed");
@@ -67,23 +105,37 @@ export default function SpeakButton({ text }: { text: string }) {
         setCached(text, url);
       }
 
+      // Fetch complete — clear fetch controller, keep setState registration
+      if (activeFetchCtrl === ctrl) activeFetchCtrl = null;
+
       const audio = new Audio(url);
       audioRef.current = audio;
-      currentAudio = audio;
+      activeAudio = audio;
 
       audio.onended = () => {
+        if (activeSetState === setState) {
+          activeSetState = null;
+          activeAudio = null;
+        }
         setState("idle");
-        currentAudio = null;
       };
       audio.onerror = () => {
+        if (activeSetState === setState) {
+          activeSetState = null;
+          activeAudio = null;
+        }
         setState("idle");
-        currentAudio = null;
       };
 
       await audio.play();
       setState("playing");
-    } catch {
-      setState("idle");
+    } catch (err) {
+      // AbortError: stopActive() was called by another button — state already reset
+      if ((err as { name?: string }).name !== "AbortError") {
+        setState("idle");
+      }
+      if (activeFetchCtrl === ctrl) activeFetchCtrl = null;
+      if (activeSetState === setState) activeSetState = null;
     }
   }, [text, state]);
 

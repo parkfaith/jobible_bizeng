@@ -100,7 +100,7 @@ npm run db:studio    # Drizzle Studio (DB 브라우저)
 | `practice_turns` | 질문-답변 턴 기록 |
 | `feedbacks` | 4항목 점수 + 피드백 텍스트 |
 | `answer_notes` | 최종 암기용 답변 + 핵심 표현 |
-| `daily_patterns` | 오늘의 질문·표현 캐시 — `patternType`으로 구분 (`daily_question` / `daily_expression`) |
+| `daily_patterns` | 날짜별 패턴 캐시 — `patternType`으로 구분 (`daily_pattern_set` / `weekly_summary_set`) |
 
 ## 배포 방식
 
@@ -109,5 +109,5 @@ GitHub `master` 브랜치에 푸시하면 Vercel에서 자동으로 프로덕션
 ## 현재 상태 (2026-05-27)
 
 비즈니스 영어 4개 시나리오 + 주 3회 가드레일 + 주말 요약 콘텐츠 + 한국어 해석 tap-to-reveal + 패턴 TTS 완료.  
-레거시 expressions 기능 완전 삭제.  
-다음 작업 후보: iOS 실기기 테스트, 프로필 수정 화면.
+레거시 expressions 기능 완전 삭제. Codex 코드리뷰 P1~P3 반영 완료.
+다음 작업 후보: iOS 실기기 테스트 (TTS 포함), 프로필 수정 화면.
