@@ -916,41 +916,56 @@ npm run dev
 2. **프로필 수정 화면** (`/profile`) — 온보딩 이후 목표 포지션, 프로젝트 등 수정 기능
 3. **기존 캐시 데이터 Ko 필드 보완** — `/patterns`에서 "다시 생성" 으로 번역 포함 데이터 교체
 
-## 22. 현재 인계 상태 (2026-05-27, 최종 업데이트)
+## 22. 현재 인계 상태 (2026-05-28, 최종 업데이트)
 
 다른 컴퓨터에서 이어갈 때 기준:
 
 - GitHub `master` 푸시 = Vercel 자동배포 완료 (별도 작업 불필요)
 - 작업 트리는 clean 상태
 
-### 2026-05-27 작업 전체 요약
+### 2026-05-27~28 작업 전체 요약
 
 **TTS 기능 추가 (커밋 `91986a5`)**
 
 - `app/api/tts/route.ts` 신규: OpenAI `tts-1` 모델, `nova` 음성, 속도 0.85, 텍스트 500자 제한, 응답 `Cache-Control: max-age=86400`
-- `components/SpeakButton.tsx` 신규: idle/loading/playing 3상태, 세션 캐시(blob URL), 모듈 싱글톤으로 이전 오디오 중단
 - 적용 위치: `/patterns` DailyView 패턴 문장, WeeklyView 핵심 패턴 문장, 홈 `PatternSetCard`
 - `practice/page.tsx` 언마운트 시 MediaRecorder 정리 + fetch abort 추가
 - `review/page.tsx` 주별 date 파라미터 practice 페이지로 전달
 
-**소스 정리 + Codex 코드리뷰 반영 (커밋 `a810999` + 후속)**
+**소스 정리 (커밋 `a810999`)**
 
 레거시 expressions 기능 완전 삭제:
 - 삭제: `app/expressions/page.tsx`, `app/api/expressions/daily/route.ts`, `components/ExpressionCard.tsx`, `components/ExpressionCardFetcher.tsx`
 - `app/patterns/page.tsx`에서 `/expressions` 링크 제거
 
-Codex P1~P3 반영:
+**Codex 코드리뷰 반영 (커밋 `8392cac`, `최신 커밋`)**
 
-- **P1 (iOS Safari TTS 차단 대응)**: 버튼 클릭 시 `new Audio(SILENT_WAV).play()` 를 fetch 이전에 동기 호출해 iOS 오디오 컨텍스트를 unlock. 이후 fetch가 완료된 뒤 `audio.play()` 호출이 차단되지 않음.
-- **P2 (경쟁 상태 제거)**: 모듈 레벨 `activeFetchCtrl` (AbortController) + `activeSetState` 콜백으로 구현. 다른 버튼 클릭 시 이전 버튼의 fetch abort + UI를 idle로 리셋. 로딩 중 같은 버튼 재탭 시 early return으로 중복 요청 방지.
-- **P3 (문서 현행화)**: agents.md 16절 "느릴 수 있는 라우트"에서 삭제된 `expressions/daily` 제거, `patterns/weekly`·`tts` 추가. CLAUDE.md DB 설명의 `daily_expression` → `daily_pattern_set / weekly_summary_set`으로 수정.
+- **P1 (iOS Safari TTS 재생 정책 대응)**: `idle → preparing → ready → playing` 4상태 머신으로 설계 변경.
+  - 캐시 미스: 첫 탭 → TTS 음성 다운로드(preparing) → 준비 완료(ready, ▶ 표시) → 두 번째 탭에서 `audio.play()` 직접 호출. 두 번째 탭이 신규 사용자 제스처이므로 iOS Safari 자동재생 정책을 준수.
+  - 캐시 히트: 첫 탭의 사용자 제스처 안에서 `await` 없이 `audio.play()` 직접 호출. 즉시 재생.
+  - **실기기 검증 필요**: iPhone/Safari 또는 설치형 PWA에서 캐시 없는 패턴 첫 탭 흐름을 확인한 뒤 이 문서에 결과 기록 필요.
+- **P2 (경쟁 상태 제거)**: 모듈 레벨 `activeFetchCtrl` (AbortController) + `activeSetState` 콜백. 다른 버튼 클릭 시 이전 버튼 fetch abort + UI idle 리셋. 준비 중 동일 버튼 재탭 무시. 취소된 요청 결과는 캐시에 저장하지 않음.
+- **P3 (문서 현행화)**: agents.md 16절 라우트 목록 수정, CLAUDE.md DB patternType 값 수정.
 
-**blob URL 캐시 eviction**
+**SpeakButton 상태별 UI**
 
-- `setCached()` 함수: 캐시 30개 초과 시 가장 오래된 항목 `URL.revokeObjectURL()` 후 삭제 (FIFO)
+| 상태 | 아이콘 | 의미 |
+|---|---|---|
+| idle | 🔊 | 탭하면 다운로드 시작 |
+| preparing | 스피너 | TTS 음성 다운로드 중 |
+| ready | ▶ (초록) | 준비 완료, 탭하면 재생 |
+| playing | ⏹ (노랑) | 재생 중, 탭하면 중단 |
+| error | ⚠ (빨강) | 실패, 1.5초 후 idle 복귀 |
+
+**blob URL 캐시**
+
+- 세션 캐시: text → objectURL, FIFO 30개 상한, 초과 시 `URL.revokeObjectURL()` 해제
 
 ### 다음 작업 후보
 
-1. **iOS 실기기 TTS 테스트** — iPhone/Safari 또는 설치형 PWA에서 캐시 없는 패턴 첫 탭 재생 확인. 결과를 이 파일에 기록.
+1. **iOS 실기기 TTS 테스트** — iPhone/Safari 또는 설치형 PWA에서 아래 흐름 확인 후 결과 기록:
+   - 캐시 없는 패턴 첫 탭: preparing → ready → 두 번째 탭 → 재생
+   - 캐시 있는 패턴 첫 탭: 즉시 재생
+   - 다른 패턴 버튼 연속 탭: 이전 버튼 중단 + UI 리셋 확인
 2. **프로필 수정 화면** (`/profile`) — 온보딩 이후 목표 포지션, 프로젝트 등 수정 기능
 3. **기존 캐시 데이터 Ko 필드 보완** — `/patterns`에서 "다시 생성"으로 번역 포함 데이터 교체

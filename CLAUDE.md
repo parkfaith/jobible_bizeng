@@ -108,6 +108,6 @@ GitHub `master` 브랜치에 푸시하면 Vercel에서 자동으로 프로덕션
 
 ## 현재 상태 (2026-05-27)
 
-비즈니스 영어 4개 시나리오 + 주 3회 가드레일 + 주말 요약 콘텐츠 + 한국어 해석 tap-to-reveal + 패턴 TTS 완료.  
-레거시 expressions 기능 완전 삭제. Codex 코드리뷰 P1~P3 반영 완료.
-다음 작업 후보: iOS 실기기 테스트 (TTS 포함), 프로필 수정 화면.
+비즈니스 영어 4개 시나리오 + 주 3회 가드레일 + 주말 요약 콘텐츠 + 한국어 해석 tap-to-reveal + 패턴 TTS 완료.
+레거시 expressions 기능 완전 삭제. TTS 경쟁 상태 제거 완료. iOS Safari TTS 설계 보정 완료 (실기기 검증 필요).
+다음 작업 후보: iPhone/Safari TTS 실기기 테스트, 프로필 수정 화면.

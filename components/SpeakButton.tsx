@@ -2,10 +2,10 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
-// Module-level singletons shared across all SpeakButton instances
+// Module-level singletons — shared across all SpeakButton instances on the page
 let activeAudio: HTMLAudioElement | null = null;
 let activeFetchCtrl: AbortController | null = null;
-// Callback to reset the currently loading/playing button's UI to idle
+// setState of the currently preparing/ready/playing button, to reset its UI when another takes over
 let activeSetState: ((s: State) => void) | null = null;
 
 function stopActive() {
@@ -22,7 +22,7 @@ function stopActive() {
   activeSetState = null;
 }
 
-// Session-level cache: text → blob URL (FIFO, max 30 entries)
+// Session-level blob URL cache: text → objectURL (FIFO, max 30 entries)
 const audioCache = new Map<string, string>();
 const CACHE_MAX = 30;
 
@@ -35,12 +35,11 @@ function setCached(text: string, url: string) {
   audioCache.set(text, url);
 }
 
-// Minimal silent WAV — played synchronously on user tap to unlock iOS Safari
-// audio context before the async TTS fetch begins.
-const SILENT_WAV =
-  "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=";
-
-type State = "idle" | "loading" | "playing";
+// State machine:
+//   idle ──tap (cache hit) ──────────────────────► playing ──end/stop──► idle
+//   idle ──tap (cache miss)──► preparing ──done──► ready ──tap──────────► playing
+//   any ──error──► error ──1.5 s──► idle
+type State = "idle" | "preparing" | "ready" | "playing" | "error";
 
 export default function SpeakButton({ text }: { text: string }) {
   const [state, setState] = useState<State>("idle");
@@ -53,7 +52,6 @@ export default function SpeakButton({ text }: { text: string }) {
         audio.pause();
         audio.src = "";
       }
-      // Clean up module-level references if this instance is the active one
       if (activeSetState === setState) {
         activeFetchCtrl?.abort();
         activeFetchCtrl = null;
@@ -63,34 +61,80 @@ export default function SpeakButton({ text }: { text: string }) {
     };
   }, []);
 
-  const handleClick = useCallback(async () => {
-    // Ignore extra taps while already loading (prevents duplicate fetches)
-    if (state === "loading") return;
-
-    // Toggle off if this button is currently playing
+  const handleClick = useCallback(() => {
+    // Playing: toggle off
     if (state === "playing") {
       stopActive();
       return;
     }
 
-    // Stop any other button that is loading or playing
+    // Preparing: ignore duplicate taps while fetch is in flight
+    if (state === "preparing") return;
+
+    // Ready: play directly from this user gesture (no await before audio.play())
+    // iOS Safari safe — audio.play() is called synchronously within the event handler.
+    if (state === "ready") {
+      const url = audioCache.get(text);
+      if (!url) { setState("idle"); return; }
+
+      if (activeSetState !== setState) stopActive();
+
+      const audio = new Audio(url);
+      audioRef.current = audio;
+      activeAudio = audio;
+      activeSetState = setState;
+
+      const onError = () => {
+        if (activeSetState === setState) { activeAudio = null; activeSetState = null; }
+        setState("error");
+        setTimeout(() => setState((s) => (s === "error" ? "idle" : s)), 1500);
+      };
+      audio.onended = () => {
+        if (activeSetState === setState) { activeAudio = null; activeSetState = null; }
+        setState("idle");
+      };
+      audio.onerror = onError;
+      audio.play().catch(onError); // synchronous within user gesture ✓
+      setState("playing");
+      return;
+    }
+
+    // Idle / Error: stop whatever is active and start a new flow
     stopActive();
 
-    setState("loading");
+    const cached = audioCache.get(text);
+    if (cached) {
+      // Cache hit — play directly within this user gesture (no await, iOS Safari safe)
+      const audio = new Audio(cached);
+      audioRef.current = audio;
+      activeAudio = audio;
+      activeSetState = setState;
 
-    // Unlock iOS Safari audio context synchronously from user gesture,
-    // before any await. Without this, audio.play() after a network fetch
-    // is rejected as not originating from a user gesture.
-    new Audio(SILENT_WAV).play().catch(() => {});
+      const onError = () => {
+        if (activeSetState === setState) { activeAudio = null; activeSetState = null; }
+        setState("error");
+        setTimeout(() => setState((s) => (s === "error" ? "idle" : s)), 1500);
+      };
+      audio.onended = () => {
+        if (activeSetState === setState) { activeAudio = null; activeSetState = null; }
+        setState("idle");
+      };
+      audio.onerror = onError;
+      audio.play().catch(onError); // synchronous within user gesture ✓
+      setState("playing");
+      return;
+    }
+
+    // Cache miss — fetch TTS then surface "ready" so the user's next tap plays
+    // from a fresh user gesture, satisfying iOS Safari's autoplay policy.
+    setState("preparing");
 
     const ctrl = new AbortController();
     activeFetchCtrl = ctrl;
     activeSetState = setState;
 
-    try {
-      let url = audioCache.get(text);
-
-      if (!url) {
+    void (async () => {
+      try {
         const res = await fetch("/api/tts", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -101,54 +145,46 @@ export default function SpeakButton({ text }: { text: string }) {
         if (!res.ok) throw new Error("tts failed");
 
         const blob = await res.blob();
-        url = URL.createObjectURL(blob);
+
+        // Abort may have been called between the last await and here
+        if (ctrl.signal.aborted) return;
+
+        const url = URL.createObjectURL(blob);
         setCached(text, url);
-      }
+        if (activeFetchCtrl === ctrl) activeFetchCtrl = null;
 
-      // Fetch complete — clear fetch controller, keep setState registration
-      if (activeFetchCtrl === ctrl) activeFetchCtrl = null;
-
-      const audio = new Audio(url);
-      audioRef.current = audio;
-      activeAudio = audio;
-
-      audio.onended = () => {
+        // Only update UI if this button is still the active one
+        if (activeSetState === setState) setState("ready");
+      } catch (err) {
+        if ((err as { name?: string }).name === "AbortError") return;
+        if (activeFetchCtrl === ctrl) activeFetchCtrl = null;
         if (activeSetState === setState) {
           activeSetState = null;
-          activeAudio = null;
+          setState("error");
+          setTimeout(() => setState((s) => (s === "error" ? "idle" : s)), 1500);
         }
-        setState("idle");
-      };
-      audio.onerror = () => {
-        if (activeSetState === setState) {
-          activeSetState = null;
-          activeAudio = null;
-        }
-        setState("idle");
-      };
-
-      await audio.play();
-      setState("playing");
-    } catch (err) {
-      // AbortError: stopActive() was called by another button — state already reset
-      if ((err as { name?: string }).name !== "AbortError") {
-        setState("idle");
       }
-      if (activeFetchCtrl === ctrl) activeFetchCtrl = null;
-      if (activeSetState === setState) activeSetState = null;
-    }
+    })();
   }, [text, state]);
 
   return (
     <button
       onClick={handleClick}
-      aria-label={state === "playing" ? "재생 중단" : "문장 듣기"}
+      aria-label={
+        state === "playing" ? "재생 중단" :
+        state === "ready" ? "탭해서 재생" :
+        "문장 듣기"
+      }
       className="tap-target shrink-0 flex items-center justify-center w-7 h-7 rounded-full bg-slate-700 hover:bg-slate-600 transition-colors"
     >
-      {state === "loading" ? (
+      {state === "preparing" ? (
         <span className="w-3 h-3 rounded-full border-2 border-slate-400 border-t-transparent animate-spin" />
+      ) : state === "ready" ? (
+        <span className="text-emerald-400 text-[13px] leading-none">▶</span>
       ) : state === "playing" ? (
         <span className="text-amber-400 text-[13px] leading-none">⏹</span>
+      ) : state === "error" ? (
+        <span className="text-red-400 text-[13px] leading-none">⚠</span>
       ) : (
         <span className="text-slate-300 text-[13px] leading-none">🔊</span>
       )}
