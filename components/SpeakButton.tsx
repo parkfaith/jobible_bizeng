@@ -42,8 +42,18 @@ function setCached(text: string, url: string) {
 type State = "idle" | "preparing" | "ready" | "playing" | "error";
 
 export default function SpeakButton({ text }: { text: string }) {
-  const [state, setState] = useState<State>("idle");
+  const [state, setStateRaw] = useState<State>("idle");
+  // stateRef mirrors state so handleClick can read the current value without
+  // depending on the render cycle — prevents stale-closure double-tap bugs.
+  const stateRef = useRef<State>("idle");
   const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  // Stable wrapper: updates both the ref (synchronous, for event handlers)
+  // and the React state (triggers re-render for UI).
+  const setState = useCallback((s: State) => {
+    stateRef.current = s;
+    setStateRaw(s);
+  }, []);
 
   useEffect(() => {
     return () => {
@@ -59,21 +69,26 @@ export default function SpeakButton({ text }: { text: string }) {
         activeAudio = null;
       }
     };
-  }, []);
+  }, [setState]);
 
   const handleClick = useCallback(() => {
+    // Read from ref — always current even before React commits the re-render.
+    // This prevents a rapid second tap from seeing stale "idle" state and
+    // cancelling an in-flight fetch.
+    const s = stateRef.current;
+
     // Playing: toggle off
-    if (state === "playing") {
+    if (s === "playing") {
       stopActive();
       return;
     }
 
     // Preparing: ignore duplicate taps while fetch is in flight
-    if (state === "preparing") return;
+    if (s === "preparing") return;
 
     // Ready: play directly from this user gesture (no await before audio.play())
     // iOS Safari safe — audio.play() is called synchronously within the event handler.
-    if (state === "ready") {
+    if (s === "ready") {
       const url = audioCache.get(text);
       if (!url) { setState("idle"); return; }
 
@@ -87,7 +102,7 @@ export default function SpeakButton({ text }: { text: string }) {
       const onError = () => {
         if (activeSetState === setState) { activeAudio = null; activeSetState = null; }
         setState("error");
-        setTimeout(() => setState((s) => (s === "error" ? "idle" : s)), 1500);
+        setTimeout(() => { if (stateRef.current === "error") setState("idle"); }, 1500);
       };
       audio.onended = () => {
         if (activeSetState === setState) { activeAudio = null; activeSetState = null; }
@@ -113,7 +128,7 @@ export default function SpeakButton({ text }: { text: string }) {
       const onError = () => {
         if (activeSetState === setState) { activeAudio = null; activeSetState = null; }
         setState("error");
-        setTimeout(() => setState((s) => (s === "error" ? "idle" : s)), 1500);
+        setTimeout(() => { if (stateRef.current === "error") setState("idle"); }, 1500);
       };
       audio.onended = () => {
         if (activeSetState === setState) { activeAudio = null; activeSetState = null; }
@@ -161,11 +176,11 @@ export default function SpeakButton({ text }: { text: string }) {
         if (activeSetState === setState) {
           activeSetState = null;
           setState("error");
-          setTimeout(() => setState((s) => (s === "error" ? "idle" : s)), 1500);
+          setTimeout(() => { if (stateRef.current === "error") setState("idle"); }, 1500);
         }
       }
     })();
-  }, [text, state]);
+  }, [text, setState]); // state 제거 — stateRef로 직접 읽으므로 렌더 사이클에 의존 안 함
 
   return (
     <button
