@@ -67,6 +67,7 @@ function PracticeContent() {
   const [recordingSeconds, setRecordingSeconds] = useState(0);
   const [error, setError] = useState("");
   const [saved, setSaved] = useState(false);
+  const [saveError, setSaveError] = useState("");
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
@@ -135,6 +136,7 @@ function PracticeContent() {
       .catch((err) => {
         if (err instanceof DOMException && err.name === "AbortError") return;
         setError("질문을 불러오지 못했습니다. 잠시 후 다시 시도해주세요.");
+        setStage("idle");
       });
 
     return () => controller.abort();
@@ -248,24 +250,31 @@ function PracticeContent() {
     setTranscript("");
     setFeedback(null);
     setSaved(false);
+    setSaveError("");
     setStage("idle");
   }
 
   async function saveToNotes() {
     if (!question || !feedback) return;
-    await fetch("/api/notes", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        category: question.category,
-        questionText: question.question,
-        originalAnswer: transcript,
-        improvedAnswer: feedback.improvedAnswerEn,
-        finalAnswer: feedback.improvedAnswerEn,
-        keyExpressions: feedback.keyExpressions,
-      }),
-    });
-    setSaved(true);
+    setSaveError("");
+    try {
+      const res = await fetch("/api/notes", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          category: question.category,
+          questionText: question.question,
+          originalAnswer: transcript,
+          improvedAnswer: feedback.improvedAnswerEn,
+          finalAnswer: feedback.improvedAnswerEn,
+          keyExpressions: feedback.keyExpressions,
+        }),
+      });
+      if (!res.ok) throw new Error("save failed");
+      setSaved(true);
+    } catch {
+      setSaveError("저장에 실패했습니다. 다시 시도해 주세요.");
+    }
   }
 
   const formatTime = (s: number) =>
@@ -429,6 +438,9 @@ function PracticeContent() {
           </div>
 
           {/* Action buttons */}
+          {saveError && (
+            <p className="text-red-300 text-xs leading-relaxed">{saveError}</p>
+          )}
           <div className="flex gap-3">
             <button
               onClick={retry}

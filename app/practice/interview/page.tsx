@@ -324,8 +324,8 @@ export default function InterviewPage() {
 
   useEffect(() => {
     if (stage !== "interviewing") return;
-    const aiQuestionCount = turns.filter((t) => t.role === "ai").length;
-    if (aiQuestionCount >= MAX_INTERVIEW_QUESTIONS && turns.some((t) => t.role === "user")) {
+    const userTurnCount = turns.filter((t) => t.role === "user").length;
+    if (userTurnCount >= MAX_INTERVIEW_QUESTIONS) {
       const id = window.setTimeout(() => endInterviewRef.current(), 2500);
       return () => window.clearTimeout(id);
     }
@@ -606,7 +606,7 @@ export default function InterviewPage() {
   }
 
   // ── INTERVIEWING ──────────────────────────────────────────────────────────
-  const questionCount = turns.filter((t) => t.role === "ai").length;
+  const userTurnCount = turns.filter((t) => t.role === "user").length;
   const scenario = getScenarioById(selectedScenarioId);
 
   return (
@@ -621,7 +621,7 @@ export default function InterviewPage() {
           <span className="text-slate-500 text-xs font-mono ml-1">{formatTime(elapsedSec)}</span>
         </div>
         <p className="text-slate-400 text-xs">
-          {Math.min(questionCount, MAX_INTERVIEW_QUESTIONS)}/{MAX_INTERVIEW_QUESTIONS}
+          {userTurnCount}/{MAX_INTERVIEW_QUESTIONS} 답변
         </p>
         <button
           onClick={endInterview}
