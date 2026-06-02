@@ -36,7 +36,7 @@ export interface DailyPatternSet {
   shadowing: ShadowingTip;
   exercise: PatternExercise;
   miniFocusKo: string;
-  source: "openai" | "manual" | "merged";
+  source: "openai" | "manual" | "merged" | "fallback";
 }
 
 export const DAILY_PATTERN_SET_TYPE = "daily_pattern_set";

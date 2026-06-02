@@ -82,7 +82,7 @@ export default function RouteProgress() {
   if (!pending) return null;
 
   return (
-    <div className="pointer-events-none fixed inset-x-0 top-0 z-[2147483646]">
+    <div className="pointer-events-none fixed inset-x-0 top-0 z-[120]">
       <div className="h-[calc(env(safe-area-inset-top)+3px)] bg-slate-950">
         <div className="absolute bottom-0 left-0 h-0.5 w-full overflow-hidden bg-slate-800">
           <div className="h-full w-1/2 animate-route-progress rounded-full bg-indigo-400" />

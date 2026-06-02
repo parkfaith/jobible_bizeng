@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import PwaInstallPrompt from "@/components/PwaInstallPrompt";
@@ -11,6 +11,18 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [navigating, setNavigating] = useState(false);
   const router = useRouter();
+
+  useEffect(() => {
+    if (!navigating) return;
+
+    const timeout = window.setTimeout(() => {
+      setNavigating(false);
+      setLoading(false);
+      setError("홈 화면 이동이 지연되고 있습니다. 다시 시도해 주세요.");
+    }, 12000);
+
+    return () => window.clearTimeout(timeout);
+  }, [navigating]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();

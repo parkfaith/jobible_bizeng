@@ -24,6 +24,8 @@ const TOPICS = [
   "Influencing Without Authority",
 ] as const;
 
+const OPENAI_PATTERN_TIMEOUT_MS = 25_000;
+
 function dayOfYearForKstDate(kstDate: string) {
   const [year, month, day] = kstDate.split("-").map(Number);
   const current = Date.UTC(year, month - 1, day);
@@ -34,6 +36,15 @@ function dayOfYearForKstDate(kstDate: string) {
 function topicForDate(kstDate = getKstDate()) {
   const dayOfYear = dayOfYearForKstDate(kstDate);
   return TOPICS[(dayOfYear - 1) % TOPICS.length];
+}
+
+function openAiErrorCode(errorText: string) {
+  try {
+    const parsed = JSON.parse(errorText) as { error?: { code?: string; type?: string } };
+    return parsed.error?.code ?? parsed.error?.type ?? "openai_error";
+  } catch {
+    return "openai_error";
+  }
 }
 
 function extractResponseText(data: {
@@ -62,15 +73,12 @@ async function generatePatternSet(): Promise<DailyPatternSet> {
   const today = getKstDate();
   const topic = topicForDate(today);
 
-  const res = await fetch("https://api.openai.com/v1/responses", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: process.env.OPENAI_TEXT_MODEL ?? "gpt-4o",
-      input: [
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), OPENAI_PATTERN_TIMEOUT_MS);
+
+  const requestBody = {
+    model: process.env.OPENAI_TEXT_MODEL ?? "gpt-4o",
+    input: [
         {
           role: "system",
           content: [
@@ -148,12 +156,23 @@ miniFocusKo: A quick-drill instruction. Format: "위 3문장을 소리 내어 3�
         },
       },
       temperature: 0.5,
-    }),
-  });
+  };
+
+  const res = await fetch("https://api.openai.com/v1/responses", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(requestBody),
+    signal: controller.signal,
+  }).finally(() => clearTimeout(timeout));
 
   if (!res.ok) {
-    console.error("OpenAI pattern generation failed", await res.text());
-    throw new Error("OpenAI pattern generation failed");
+    const errorText = await res.text();
+    const code = openAiErrorCode(errorText);
+    console.error("OpenAI pattern generation failed", { status: res.status, code });
+    throw new Error(`OpenAI pattern generation failed: ${code}`);
   }
 
   const data = await res.json();
@@ -167,6 +186,81 @@ miniFocusKo: A quick-drill instruction. Format: "위 3문장을 소리 내어 3�
     ...content,
     shadowing: { ...content.shadowing, links: cleanLinks },
     source: "openai",
+  };
+}
+
+function buildFallbackPatternSet(topic = topicForDate()): DailyPatternSet {
+  return {
+    topic,
+    audience: "For AI Director / Global Company Senior Interview",
+    patterns: [
+      {
+        sentence:
+          "I first clarify the business objective, then align the technical approach around measurable outcomes.",
+        meaningKo:
+          "저는 먼저 비즈니스 목표를 명확히 한 뒤, 측정 가능한 성과를 중심으로 기술 접근을 정렬합니다.",
+        usagePointKo: "AI 프로젝트 착수 회의, 임원 면접 답변, 우선순위 조정 상황",
+      },
+      {
+        sentence:
+          "When there is ambiguity, I make the assumptions explicit and validate them with stakeholders early.",
+        meaningKo:
+          "불확실성이 있을 때는 가정을 명확히 드러내고 초기에 이해관계자와 검증합니다.",
+        usagePointKo: "요구사항이 불명확한 프로젝트, 리스크 보고, 부서간 조율 회의",
+      },
+      {
+        sentence:
+          "This helps the team move quickly without losing accountability for quality, risk, and impact.",
+        meaningKo:
+          "이 방식은 팀이 빠르게 움직이면서도 품질, 리스크, 임팩트에 대한 책임을 놓치지 않게 합니다.",
+        usagePointKo: "리더십 면접, 실행 전략 설명, 프로젝트 회고",
+      },
+    ],
+    mistakes: [
+      {
+        wrong: "I just try to do my best when things are unclear.",
+        correct: "I clarify assumptions early and align stakeholders around measurable outcomes.",
+        tipKo: "막연한 노력보다 리더가 불확실성을 어떻게 줄였는지 보여주는 표현이 더 강합니다.",
+      },
+    ],
+    shadowing: {
+      sentence:
+        "I first clarify the business objective, then align the technical approach around measurable outcomes.",
+      links: ["clarify-the-business-objective", "align-the-technical-approach"],
+      tipKo:
+        "강세: I-FIRST-CLAR-i-fy-the-BUS-i-ness-ob-JEC-tive → 연음: clarify-the-business-objective → 핵심 단어: clarify, align, outcomes",
+    },
+    exercise: {
+      question:
+        "Tell me about a time when you had to lead an AI project with unclear requirements.",
+      questionKo:
+        "요구사항이 불명확한 AI 프로젝트를 리드했던 경험을 설명해 주세요.",
+      structure: [
+        {
+          label: "Situation",
+          sentence: "The business goal was important, but the requirements were still ambiguous.",
+          sentenceKo: "비즈니스 목표는 중요했지만 요구사항은 아직 불명확했습니다.",
+        },
+        {
+          label: "Action",
+          sentence: "I clarified the assumptions and aligned the stakeholders on success metrics.",
+          sentenceKo: "저는 가정을 명확히 하고 이해관계자들과 성공 기준을 맞췄습니다.",
+        },
+        {
+          label: "Execution",
+          sentence: "Then I guided the team through short validation cycles before scaling the solution.",
+          sentenceKo: "그 후 솔루션을 확장하기 전에 짧은 검증 사이클로 팀을 이끌었습니다.",
+        },
+        {
+          label: "Result",
+          sentence: "As a result, we reduced risk while keeping the project focused on business impact.",
+          sentenceKo: "그 결과 리스크를 줄이면서도 프로젝트를 비즈니스 임팩트에 집중시켰습니다.",
+        },
+      ],
+    },
+    miniFocusKo:
+      "위 3문장을 소리 내어 3번 읽으세요. 목표: 불확실한 상황에서도 리더답게 구조를 잡는 톤으로 말하기",
+    source: "fallback",
   };
 }
 
@@ -214,23 +308,24 @@ async function recordRegeneration() {
 
 export async function GET() {
   const today = getKstDate();
-  const cached = await db
-    .select()
-    .from(dailyPatterns)
-    .where(and(eq(dailyPatterns.date, today), eq(dailyPatterns.patternType, DAILY_PATTERN_SET_TYPE)))
-    .limit(1);
-
-  if (cached.length > 0) {
-    const cachedContent = JSON.parse(cached[0].content) as DailyPatternSet;
-    const expectedTopic = topicForDate(today);
-    if (cachedContent.source === "manual" || cachedContent.topic === expectedTopic) {
-      return NextResponse.json(cachedContent, {
-        headers: { "Cache-Control": "no-store" },
-      });
-    }
-  }
 
   try {
+    const cached = await db
+      .select()
+      .from(dailyPatterns)
+      .where(and(eq(dailyPatterns.date, today), eq(dailyPatterns.patternType, DAILY_PATTERN_SET_TYPE)))
+      .limit(1);
+
+    if (cached.length > 0) {
+      const cachedContent = JSON.parse(cached[0].content) as DailyPatternSet;
+      const expectedTopic = topicForDate(today);
+      if (cachedContent.source === "manual" || cachedContent.topic === expectedTopic) {
+        return NextResponse.json(cachedContent, {
+          headers: { "Cache-Control": "no-store" },
+        });
+      }
+    }
+
     const generated = await generatePatternSet();
     await upsertTodayPatternSet(generated);
     return NextResponse.json(generated, {
@@ -238,10 +333,15 @@ export async function GET() {
     });
   } catch (error) {
     console.error("daily pattern generation failed", error);
-    return NextResponse.json(
-      { error: "Failed to generate pattern set" },
-      { status: 500, headers: { "Cache-Control": "no-store" } }
-    );
+    const fallback = buildFallbackPatternSet();
+    try {
+      await upsertTodayPatternSet(fallback);
+    } catch (persistError) {
+      console.error("daily fallback pattern persist failed", persistError);
+    }
+    return NextResponse.json(fallback, {
+      headers: { "Cache-Control": "no-store" },
+    });
   }
 }
 
@@ -262,10 +362,10 @@ export async function POST() {
     });
   } catch (error) {
     console.error("daily pattern regeneration failed", error);
-    return NextResponse.json(
-      { error: "Failed to regenerate pattern set" },
-      { status: 500, headers: { "Cache-Control": "no-store" } }
-    );
+    const fallback = buildFallbackPatternSet();
+    return NextResponse.json(fallback, {
+      headers: { "Cache-Control": "no-store" },
+    });
   }
 }
 
