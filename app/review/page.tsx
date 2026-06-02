@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { desc, eq, or } from "drizzle-orm";
+import { and, desc, eq, like, or } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { dailyPatterns } from "@/lib/db/schema";
 import {
@@ -16,13 +16,29 @@ type ReviewItem =
   | { kind: "daily"; id: number; date: string; data: DailyPatternSet }
   | { kind: "weekly"; id: number; date: string; data: WeeklySummarySet };
 
-export default async function ReviewPage() {
+export default async function ReviewPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ month?: string }>;
+}) {
+  const params = await searchParams;
+  const todayKst = getKstDate();
+  const currentMonth = todayKst.slice(0, 7);
+  const selectedMonth = isValidMonth(params.month) ? params.month! : currentMonth;
+
   const rows = await db
     .select()
     .from(dailyPatterns)
-    .where(or(eq(dailyPatterns.patternType, DAILY_PATTERN_SET_TYPE), eq(dailyPatterns.patternType, WEEKLY_SUMMARY_SET_TYPE)))
-    .orderBy(desc(dailyPatterns.date))
-    .limit(60);
+    .where(
+      and(
+        or(
+          eq(dailyPatterns.patternType, DAILY_PATTERN_SET_TYPE),
+          eq(dailyPatterns.patternType, WEEKLY_SUMMARY_SET_TYPE)
+        ),
+        like(dailyPatterns.date, `${selectedMonth}-%`)
+      )
+    )
+    .orderBy(desc(dailyPatterns.date));
 
   const items: ReviewItem[] = rows.map((row) => {
     if (row.patternType === WEEKLY_SUMMARY_SET_TYPE) {
@@ -41,21 +57,20 @@ export default async function ReviewPage() {
     };
   });
 
-  const dailyDateSet = new Set(
-    items.filter((i) => i.kind === "daily").map((i) => i.date)
-  );
-  const weeklyDateSet = new Set(
-    items.filter((i) => i.kind === "weekly").map((i) => i.date)
-  );
+  const dailyDateSet = new Set(items.filter((i) => i.kind === "daily").map((i) => i.date));
+  const weeklyDateSet = new Set(items.filter((i) => i.kind === "weekly").map((i) => i.date));
 
-  const todayKst = getKstDate();
-  const monthDays = buildMonthDays(dailyDateSet, weeklyDateSet, todayKst);
-
+  const monthDays = buildMonthDays(dailyDateSet, weeklyDateSet, selectedMonth, todayKst);
   const dailyCount = dailyDateSet.size;
   const weeklyCount = weeklyDateSet.size;
 
+  const prev = offsetMonth(selectedMonth, -1);
+  const next = offsetMonth(selectedMonth, 1);
+  const isNextDisabled = selectedMonth >= currentMonth;
+
   return (
     <main className="min-h-screen bg-slate-950 flex flex-col max-w-md mx-auto px-4 pt-7 bottom-safe">
+      {/* Header */}
       <div className="flex items-center gap-3 mb-5">
         <Link href="/" className="tap-target flex items-center justify-center text-slate-400 text-2xl leading-none">
           ←
@@ -69,20 +84,44 @@ export default async function ReviewPage() {
         </div>
       </div>
 
+      {/* Calendar */}
       <section className="bg-slate-800 border border-slate-700 rounded-2xl p-4 mb-5">
+        {/* Month navigation */}
         <div className="flex items-center justify-between mb-3">
-          <p className="text-white text-sm font-semibold">{formatMonth(todayKst)}</p>
-          <div className="flex items-center gap-3">
-            <span className="flex items-center gap-1 text-slate-500 text-xs">
-              <span className="w-2 h-2 rounded-full bg-amber-300 inline-block" />
-              일별 {dailyCount}
+          <Link
+            href={`/review?month=${prev}`}
+            className="tap-target w-9 h-9 flex items-center justify-center rounded-xl bg-slate-700 text-slate-300 text-base font-bold"
+          >
+            ←
+          </Link>
+          <p className="text-white text-sm font-semibold">{formatMonth(selectedMonth)}</p>
+          {isNextDisabled ? (
+            <span className="w-9 h-9 flex items-center justify-center rounded-xl bg-slate-900 text-slate-700 text-base font-bold cursor-not-allowed">
+              →
             </span>
-            <span className="flex items-center gap-1 text-slate-500 text-xs">
-              <span className="w-2 h-2 rounded-full bg-emerald-300 inline-block" />
-              주간 {weeklyCount}
-            </span>
-          </div>
+          ) : (
+            <Link
+              href={`/review?month=${next}`}
+              className="tap-target w-9 h-9 flex items-center justify-center rounded-xl bg-slate-700 text-slate-300 text-base font-bold"
+            >
+              →
+            </Link>
+          )}
         </div>
+
+        {/* Legend */}
+        <div className="flex items-center gap-3 mb-3 justify-end">
+          <span className="flex items-center gap-1 text-slate-500 text-xs">
+            <span className="w-2 h-2 rounded-full bg-amber-300 inline-block" />
+            일별 {dailyCount}
+          </span>
+          <span className="flex items-center gap-1 text-slate-500 text-xs">
+            <span className="w-2 h-2 rounded-full bg-emerald-300 inline-block" />
+            주간 {weeklyCount}
+          </span>
+        </div>
+
+        {/* Day of week headers */}
         <div className="grid grid-cols-7 gap-1.5 mb-2">
           {["일", "월", "화", "수", "목", "금", "토"].map((day) => (
             <p key={day} className="text-center text-slate-500 text-[11px]">
@@ -90,33 +129,42 @@ export default async function ReviewPage() {
             </p>
           ))}
         </div>
+
+        {/* Day cells */}
         <div className="grid grid-cols-7 gap-1.5">
-          {monthDays.map((day, index) =>
-            day ? (
-              <div
-                key={day.date}
-                className={`aspect-square rounded-xl flex flex-col items-center justify-center border ${
-                  day.hasWeekly
-                    ? "bg-emerald-500/15 border-emerald-500/30 text-white"
-                    : day.hasPattern
-                    ? "bg-amber-500/15 border-amber-500/30 text-white"
-                    : "bg-slate-900 border-slate-800 text-slate-600"
-                }`}
-              >
-                <span className="text-xs font-medium">{day.label}</span>
-                {day.hasWeekly && <span className="mt-1 w-1.5 h-1.5 rounded-full bg-emerald-300" />}
-                {!day.hasWeekly && day.hasPattern && <span className="mt-1 w-1.5 h-1.5 rounded-full bg-amber-300" />}
-              </div>
+          {monthDays.map((day, index) => {
+            if (!day) return <div key={`empty-${index}`} className="aspect-square" />;
+            const hasData = day.hasPattern || day.hasWeekly;
+            const base = `aspect-square rounded-xl flex flex-col items-center justify-center border text-xs font-medium transition-colors ${
+              day.isToday ? "ring-1 ring-inset ring-indigo-400" : ""
+            }`;
+            const colorClass = day.hasWeekly
+              ? "bg-emerald-500/15 border-emerald-500/30 text-white"
+              : day.hasPattern
+              ? "bg-amber-500/15 border-amber-500/30 text-white"
+              : "bg-slate-900 border-slate-800 text-slate-600";
+
+            return hasData ? (
+              <a key={day.date} href={`#date-${day.date}`} className={`${base} ${colorClass} active:opacity-70`}>
+                <span>{day.label}</span>
+                {day.hasWeekly && <span className="mt-0.5 w-1.5 h-1.5 rounded-full bg-emerald-300" />}
+                {!day.hasWeekly && day.hasPattern && <span className="mt-0.5 w-1.5 h-1.5 rounded-full bg-amber-300" />}
+              </a>
             ) : (
-              <div key={`empty-${index}`} className="aspect-square" />
-            )
-          )}
+              <div key={day.date} className={`${base} ${colorClass}`}>
+                <span>{day.label}</span>
+              </div>
+            );
+          })}
         </div>
       </section>
 
-      <section>
+      {/* Review list */}
+      <section className="pb-28">
         <div className="flex items-center justify-between mb-3">
-          <h2 className="text-slate-300 text-sm font-semibold">복습 목록</h2>
+          <h2 className="text-slate-300 text-sm font-semibold">
+            {formatMonth(selectedMonth)} 복습 목록
+          </h2>
           <Link href="/patterns" className="tap-target flex items-center text-indigo-400 text-xs">
             오늘 패턴
           </Link>
@@ -124,8 +172,8 @@ export default async function ReviewPage() {
 
         {items.length === 0 ? (
           <div className="bg-slate-800 border border-slate-700 rounded-2xl p-5 text-center">
-            <p className="text-slate-300 text-sm font-medium">아직 저장된 패턴이 없습니다</p>
-            <p className="text-slate-500 text-xs mt-1">오늘의 패턴이 생성되면 이곳에 쌓입니다.</p>
+            <p className="text-slate-300 text-sm font-medium">이 달에 저장된 패턴이 없습니다</p>
+            <p className="text-slate-500 text-xs mt-1">← 버튼으로 다른 달을 확인해 보세요</p>
           </div>
         ) : (
           <div className="flex flex-col gap-3">
@@ -140,6 +188,7 @@ export default async function ReviewPage() {
         )}
       </section>
 
+      {/* Bottom Nav */}
       <nav className="bottom-nav fixed bottom-0 left-0 right-0 bg-slate-900 border-t border-slate-800 flex justify-around pt-3">
         <Link href="/" className="tap-target flex flex-col items-center justify-center gap-1 text-slate-500">
           <span className="text-xl">🏠</span>
@@ -168,7 +217,10 @@ export default async function ReviewPage() {
 
 function DailyReviewCard({ item }: { item: Extract<ReviewItem, { kind: "daily" }> }) {
   return (
-    <details className="bg-slate-800 border border-slate-700 rounded-2xl p-4">
+    <details
+      id={`date-${item.date}`}
+      className="bg-slate-800 border border-slate-700 rounded-2xl p-4 scroll-mt-4"
+    >
       <summary className="cursor-pointer list-none">
         <div className="flex items-start gap-3">
           <div className="w-10 h-10 rounded-xl bg-slate-700 flex items-center justify-center text-lg shrink-0">
@@ -195,7 +247,10 @@ function DailyReviewCard({ item }: { item: Extract<ReviewItem, { kind: "daily" }
 
 function WeeklyReviewCard({ item }: { item: Extract<ReviewItem, { kind: "weekly" }> }) {
   return (
-    <details className="bg-slate-800 border border-emerald-800/40 rounded-2xl p-4">
+    <details
+      id={`date-${item.date}`}
+      className="bg-slate-800 border border-emerald-800/40 rounded-2xl p-4 scroll-mt-4"
+    >
       <summary className="cursor-pointer list-none">
         <div className="flex items-start gap-3">
           <div className="w-10 h-10 rounded-xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-lg shrink-0">
@@ -235,13 +290,24 @@ function WeeklyReviewCard({ item }: { item: Extract<ReviewItem, { kind: "weekly"
   );
 }
 
+function isValidMonth(month?: string): month is string {
+  return !!month && /^\d{4}-\d{2}$/.test(month);
+}
+
+function offsetMonth(monthStr: string, delta: number): string {
+  const [year, mon] = monthStr.split("-").map(Number);
+  const d = new Date(year, mon - 1 + delta, 1);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+}
+
 function buildMonthDays(
   dailyDateSet: Set<string>,
   weeklyDateSet: Set<string>,
+  monthStr: string,
   todayKst: string
 ) {
-  const year = parseInt(todayKst.slice(0, 4), 10);
-  const month = parseInt(todayKst.slice(5, 7), 10) - 1;
+  const year = parseInt(monthStr.slice(0, 4), 10);
+  const month = parseInt(monthStr.slice(5, 7), 10) - 1;
   const firstDay = new Date(year, month, 1);
   const lastDay = new Date(year, month + 1, 0);
   const days: Array<{
@@ -249,6 +315,7 @@ function buildMonthDays(
     label: number;
     hasPattern: boolean;
     hasWeekly: boolean;
+    isToday: boolean;
   } | null> = [];
 
   for (let i = 0; i < firstDay.getDay(); i += 1) days.push(null);
@@ -260,15 +327,19 @@ function buildMonthDays(
       label: day,
       hasPattern: dailyDateSet.has(date),
       hasWeekly: weeklyDateSet.has(date),
+      isToday: date === todayKst,
     });
   }
 
   return days;
 }
 
-function formatMonth(kstDateStr: string) {
-  const [year, month] = kstDateStr.split("-").map(Number);
-  return new Date(year, month - 1, 1).toLocaleDateString("ko-KR", { year: "numeric", month: "long" });
+function formatMonth(monthStr: string) {
+  const [year, month] = monthStr.split("-").map(Number);
+  return new Date(year, month - 1, 1).toLocaleDateString("ko-KR", {
+    year: "numeric",
+    month: "long",
+  });
 }
 
 function formatDate(date: string) {
