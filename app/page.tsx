@@ -87,10 +87,17 @@ export default async function HomePage() {
           height={48}
           className="rounded-2xl shrink-0"
         />
-        <div>
+        <div className="flex-1">
           <p className="text-white font-bold text-lg tracking-tight">Jobible BizEng</p>
           <p className="text-slate-500 text-xs">AI 면접 코치</p>
         </div>
+        <Link
+          href="/profile"
+          className="tap-target w-10 h-10 flex items-center justify-center rounded-xl bg-slate-800 border border-slate-700 text-slate-400 text-lg shrink-0"
+          title="프로필 수정"
+        >
+          ⚙️
+        </Link>
       </div>
 
       {/* Primary CTA — 실전 면접 */}
