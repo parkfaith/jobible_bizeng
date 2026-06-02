@@ -84,6 +84,7 @@ export default async function StatsPage() {
       bestAnswer: feedbacks.bestAnswer,
       worstAnswer: feedbacks.worstAnswer,
       nextFocus: feedbacks.nextFocus,
+      keyExpressions: feedbacks.keyExpressions,
       createdAt: feedbacks.createdAt,
     })
     .from(feedbacks)
@@ -137,7 +138,7 @@ export default async function StatsPage() {
       {/* 총 연습 횟수 */}
       <div className="grid grid-cols-2 gap-3 mb-5">
         <div className="bg-slate-800 border border-slate-700 rounded-2xl p-4">
-          <p className="text-slate-400 text-xs mb-1">30초 연습</p>
+          <p className="text-slate-400 text-xs mb-1">질문 연습</p>
           <p className="text-white text-3xl font-bold">{Number(dailyCount?.count ?? 0)}<span className="text-slate-500 text-base font-normal ml-1">회</span></p>
         </div>
         <div className="bg-slate-800 border border-slate-700 rounded-2xl p-4">
@@ -168,7 +169,7 @@ export default async function StatsPage() {
           </div>
         ) : (
           <p className="text-slate-500 text-sm text-center py-4">
-            30초 연습을 완료하면 점수가 쌓입니다
+            질문 연습을 완료하면 점수가 쌓입니다
           </p>
         )}
 
@@ -181,7 +182,7 @@ export default async function StatsPage() {
 
       {/* 최근 연습 기록 */}
       <section className="mb-5">
-        <h2 className="text-slate-400 text-xs font-medium mb-3">최근 30초 연습</h2>
+        <h2 className="text-slate-400 text-xs font-medium mb-3">최근 질문 연습</h2>
 
         {dailyRows.length === 0 ? (
           <div className="bg-slate-800 border border-slate-700 rounded-2xl p-5 text-center">
@@ -271,13 +272,14 @@ export default async function StatsPage() {
         ) : (
           <div className="flex flex-col gap-2">
             {interviewRows.map((row) => {
-              let best: { question?: string; answer?: string; reasonKo?: string } = {};
+              type AnswerItem = { question?: string; answer?: string; reasonKo?: string };
+              let best: AnswerItem = {};
+              let worst: AnswerItem = {};
+              let expressions: string[] = [];
+              try { if (row.bestAnswer) best = JSON.parse(row.bestAnswer); } catch { /* ignore */ }
+              try { if (row.worstAnswer) worst = JSON.parse(row.worstAnswer); } catch { /* ignore */ }
+              try { if (row.keyExpressions) expressions = JSON.parse(row.keyExpressions); } catch { /* ignore */ }
               const nextFocus = row.nextFocus ?? "";
-              try {
-                if (row.bestAnswer) best = JSON.parse(row.bestAnswer);
-              } catch {
-                // ignore malformed JSON
-              }
               return (
                 <details key={row.id} className="bg-slate-800 border border-indigo-900 rounded-2xl">
                   <summary className="cursor-pointer list-none px-4 py-3">
@@ -293,20 +295,44 @@ export default async function StatsPage() {
                       </div>
                     </div>
                   </summary>
-                  <div className="px-4 pb-4 pt-2 border-t border-slate-700 flex flex-col gap-3">
+                  <div className="px-4 pb-4 pt-2 border-t border-slate-700 flex flex-col gap-4">
                     {best.answer && (
                       <div>
                         <p className="text-green-400 text-xs font-semibold mb-1">가장 좋았던 답변</p>
+                        <p className="text-slate-400 text-xs mb-1">{best.question}</p>
                         <p className="text-slate-200 text-sm leading-relaxed">{best.answer}</p>
                         {best.reasonKo && (
-                          <p className="text-slate-500 text-xs mt-1">{best.reasonKo}</p>
+                          <p className="text-slate-500 text-xs mt-1.5 leading-relaxed">{best.reasonKo}</p>
+                        )}
+                      </div>
+                    )}
+                    {worst.answer && (
+                      <div>
+                        <p className="text-red-400 text-xs font-semibold mb-1">가장 위험했던 답변</p>
+                        <p className="text-slate-400 text-xs mb-1">{worst.question}</p>
+                        <p className="text-slate-200 text-sm leading-relaxed">{worst.answer}</p>
+                        {worst.reasonKo && (
+                          <p className="text-slate-500 text-xs mt-1.5 leading-relaxed">{worst.reasonKo}</p>
                         )}
                       </div>
                     )}
                     {nextFocus && (
+                      <div className="bg-orange-950/50 border border-orange-800/40 rounded-xl px-3 py-2.5">
+                        <p className="text-orange-400 text-xs font-semibold mb-1">다음에 반드시 고칠 것</p>
+                        <p className="text-orange-100 text-sm leading-relaxed">{nextFocus}</p>
+                      </div>
+                    )}
+                    {expressions.length > 0 && (
                       <div>
-                        <p className="text-orange-400 text-xs font-semibold mb-1">다음에 고칠 것</p>
-                        <p className="text-slate-300 text-sm leading-relaxed">{nextFocus}</p>
+                        <p className="text-indigo-400 text-xs font-semibold mb-2">바로 쓸 수 있는 표현</p>
+                        <div className="flex flex-col gap-1.5">
+                          {expressions.map((expr, i) => (
+                            <p key={i} className="text-slate-200 text-sm leading-relaxed">
+                              <span className="text-indigo-400 text-xs font-semibold mr-1.5">{i + 1}</span>
+                              {expr}
+                            </p>
+                          ))}
+                        </div>
                       </div>
                     )}
                   </div>
