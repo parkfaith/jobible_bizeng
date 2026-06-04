@@ -49,3 +49,6 @@ linkedin-assets/
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# 로컬 개발 서버 로그
+dev-server.*.log

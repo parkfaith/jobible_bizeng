@@ -186,7 +186,7 @@ export default function InterviewPage() {
 
         const tokenData = await tokenRes.json();
         const ephemeralKey: string =
-          tokenData.value ?? tokenData.client_secret?.value ?? tokenData.session?.client_secret?.value;
+          tokenData.client_secret?.value ?? tokenData.value ?? tokenData.session?.client_secret?.value;
         if (!ephemeralKey) throw new Error("ephemeral key 없음");
 
         if (cancelled) return;
