@@ -15,6 +15,7 @@ type Stage =
   | "scenario_select"
   | "briefing"
   | "connecting"
+  | "ready"
   | "interviewing"
   | "ending"
   | "feedback"
@@ -61,6 +62,7 @@ export default function InterviewPage() {
   const [savedNote, setSavedNote] = useState(false);
   const [savingNote, setSavingNote] = useState(false);
   const [saveNoteError, setSaveNoteError] = useState("");
+  const [dcReady, setDcReady] = useState(false);
   const [showBestKo, setShowBestKo] = useState(false);
   const [showWorstKo, setShowWorstKo] = useState(false);
   const [shownSentencesKo, setShownSentencesKo] = useState<Set<number>>(new Set());
@@ -119,6 +121,7 @@ export default function InterviewPage() {
     setSaveNoteError("");
     setElapsedSec(0);
     connectedRef.current = false;
+    setDcReady(false);
     setStage("connecting");
   }
 
@@ -176,6 +179,16 @@ export default function InterviewPage() {
 
   const endInterviewRef = useRef(endInterview);
   useEffect(() => { endInterviewRef.current = endInterview; }, [endInterview]);
+
+  function startActualInterview() {
+    const dc = dcRef.current;
+    if (!dc || dc.readyState !== "open") return;
+    dc.send(JSON.stringify({
+      type: "response.create",
+      response: { instructions: getOpeningInstruction(selectedScenarioRef.current) },
+    }));
+    setStage("interviewing");
+  }
 
   // WebRTC setup
   useEffect(() => {
@@ -236,10 +249,7 @@ export default function InterviewPage() {
           handleRealtimeEvent(event);
         };
         dc.onopen = () => {
-          dc.send(JSON.stringify({
-            type: "response.create",
-            response: { instructions: getOpeningInstruction(selectedScenarioRef.current) },
-          }));
+          setDcReady(true);
         };
 
         const offer = await pc.createOffer();
@@ -259,7 +269,7 @@ export default function InterviewPage() {
 
         if (!cancelled) {
           connectedRef.current = true;
-          setStage("interviewing");
+          setStage("ready");
         }
       } catch (err) {
         if (!cancelled) {
@@ -330,9 +340,9 @@ export default function InterviewPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [stage]);
 
-  // connecting→interviewing 전환 시 audio 엘리먼트가 리마운트되므로 srcObject 재연결
+  // connecting→ready/interviewing 전환 시 audio 엘리먼트가 리마운트되므로 srcObject 재연결
   useEffect(() => {
-    if (stage === "interviewing" && audioRef.current && remoteStreamRef.current) {
+    if ((stage === "ready" || stage === "interviewing") && audioRef.current && remoteStreamRef.current) {
       audioRef.current.srcObject = remoteStreamRef.current;
       audioRef.current.play().catch(() => {});
     }
@@ -509,6 +519,62 @@ export default function InterviewPage() {
         <div className="w-14 h-14 rounded-full border-4 border-indigo-500 border-t-transparent animate-spin" />
         <p className="text-white font-semibold text-lg">연결 중...</p>
         <p className="text-slate-400 text-sm text-center">마이크 권한 요청이 뜨면 허용해 주세요</p>
+      </main>
+    );
+  }
+
+  // ── READY ────────────────────────────────────────────────────────────────
+  if (stage === "ready") {
+    const scenario = getScenarioById(selectedScenarioId);
+    const btnColor =
+      selectedScenarioId === "interview" ? "bg-indigo-600"
+      : selectedScenarioId === "executive_briefing" ? "bg-blue-700"
+      : selectedScenarioId === "cross_functional" ? "bg-amber-700"
+      : "bg-emerald-700";
+
+    return (
+      <main className="min-h-screen bg-slate-950 flex flex-col max-w-md mx-auto px-4 pt-7 pb-10">
+        <audio ref={audioRef} autoPlay playsInline className="hidden" />
+
+        <div className="flex items-center gap-3 mb-8">
+          <div className={`w-11 h-11 rounded-2xl ${scenario.color.bg} ${scenario.color.border} border flex items-center justify-center text-2xl shrink-0`}>
+            {scenario.icon}
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-green-400" />
+              <p className="text-green-400 text-xs font-medium">연결됨</p>
+            </div>
+            <h1 className="text-white font-bold text-lg">{scenario.briefingTitleKo}</h1>
+          </div>
+        </div>
+
+        <div className={`${scenario.color.bg} border ${scenario.color.border} rounded-2xl p-5 mb-4`}>
+          <p className={`text-xs font-medium mb-2 ${scenario.color.text}`}>오늘의 상황</p>
+          <p className="text-white text-sm leading-relaxed">{scenario.briefingBodyKo}</p>
+        </div>
+
+        <div className="bg-slate-800 border border-slate-700 rounded-2xl px-5 py-4 mb-8">
+          <p className="text-slate-400 text-sm text-center leading-relaxed">
+            준비가 되면 아래 버튼을 누르세요.<br />
+            <span className="text-slate-500 text-xs">버튼을 누르는 순간 상대방이 먼저 말을 겁니다.</span>
+          </p>
+        </div>
+
+        <button
+          onClick={startActualInterview}
+          disabled={!dcReady}
+          className={`tap-target mt-auto w-full rounded-xl font-semibold text-base py-5 active:scale-[0.99] transition-all ${
+            dcReady
+              ? `${btnColor} text-white`
+              : "bg-slate-700 text-slate-400"
+          }`}
+        >
+          {dcReady ? "면접 시작" : "준비 중..."}
+        </button>
+        <p className="text-slate-500 text-xs text-center mt-3">
+          이어폰을 착용하면 주변 소음 인식이 줄어듭니다.
+        </p>
       </main>
     );
   }
