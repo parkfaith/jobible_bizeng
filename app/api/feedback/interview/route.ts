@@ -53,20 +53,30 @@ ${profileCtx}
 Analyze the full interview transcript and return JSON with this exact shape:
 {
   "bestAnswer": {
-    "question": "...",
-    "answer": "...",
+    "question": "the interviewer's question verbatim",
+    "questionKo": "질문의 자연스러운 한국어 번역",
+    "answer": "the candidate's answer verbatim",
+    "answerKo": "답변의 자연스러운 한국어 번역",
     "reasonKo": "이 답변이 가장 좋았던 이유 (한국어, 2문장)"
   },
   "worstAnswer": {
-    "question": "...",
-    "answer": "...",
+    "question": "the interviewer's question verbatim",
+    "questionKo": "질문의 자연스러운 한국어 번역",
+    "answer": "the candidate's answer verbatim",
+    "answerKo": "답변의 자연스러운 한국어 번역",
     "reasonKo": "이 답변이 가장 위험했던 이유 (한국어, 2문장)"
   },
   "nextFocusKo": "다음 연습에서 반드시 고쳐야 할 딱 한 가지 (한국어, 1-2문장)",
-  "improvementSentences": ["...", "...", "..."]
+  "improvementSentences": ["...", "...", "..."],
+  "improvementSentencesKo": ["개선문장1 한국어 번역", "개선문장2 한국어 번역", "개선문장3 한국어 번역"],
+  "qa": [
+    { "q": "Interviewer question in English", "qKo": "질문 한국어 번역", "a": "Candidate answer in English", "aKo": "답변 한국어 번역" }
+  ]
 }
 
-improvementSentences: exactly 3 English sentences the candidate can immediately use in their next interview. Make them specific, executive-sounding, and directly based on the candidate's weak answers.`,
+improvementSentences: exactly 3 English sentences the candidate can immediately use in their next interview. Make them specific, executive-sounding, and directly based on the candidate's weak answers.
+improvementSentencesKo: natural Korean translations of the 3 improvement sentences above.
+qa: extract ALL main question-answer pairs from the transcript as structured objects. Skip pure greetings and session-closing remarks. Include Korean translations for both questions and answers.`,
         },
         {
           role: "user",

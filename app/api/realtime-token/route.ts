@@ -113,7 +113,7 @@ Use this topic as the main thread of the interview.`
           },
           output: {
             voice: "marin",
-            speed: 0.95,
+            speed: 0.8,
           },
         },
       },

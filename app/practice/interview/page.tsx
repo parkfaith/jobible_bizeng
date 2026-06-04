@@ -26,14 +26,16 @@ interface Turn {
 }
 
 interface InterviewFeedback {
-  bestAnswer: { question: string; answer: string; reasonKo: string };
-  worstAnswer: { question: string; answer: string; reasonKo: string };
+  bestAnswer: { question: string; questionKo?: string; answer: string; answerKo?: string; reasonKo: string };
+  worstAnswer: { question: string; questionKo?: string; answer: string; answerKo?: string; reasonKo: string };
   nextFocusKo: string;
   improvementSentences: string[];
+  improvementSentencesKo?: string[];
+  qa?: { q: string; qKo: string; a: string; aKo: string }[];
 }
 
 const MAX_INTERVIEW_SECONDS = 10 * 60;
-const MAX_INTERVIEW_QUESTIONS = 4;
+const MAX_INTERVIEW_QUESTIONS = 6;
 
 function InfoPill({ label, value }: { label: string; value: string }) {
   return (
@@ -59,6 +61,10 @@ export default function InterviewPage() {
   const [savedNote, setSavedNote] = useState(false);
   const [savingNote, setSavingNote] = useState(false);
   const [saveNoteError, setSaveNoteError] = useState("");
+  const [showBestKo, setShowBestKo] = useState(false);
+  const [showWorstKo, setShowWorstKo] = useState(false);
+  const [shownSentencesKo, setShownSentencesKo] = useState<Set<number>>(new Set());
+  const [showFullConversation, setShowFullConversation] = useState(false);
 
   const pcRef = useRef<RTCPeerConnection | null>(null);
   const dcRef = useRef<RTCDataChannel | null>(null);
@@ -411,7 +417,7 @@ export default function InterviewPage() {
           <div className="grid grid-cols-2 gap-2">
             <InfoPill label="시간" value="5~10분" />
             <InfoPill label="언어" value="영어 음성" />
-            <InfoPill label="턴수" value="3~4회" />
+            <InfoPill label="턴수" value="5~6회" />
             <InfoPill label="피드백" value="종료 후" />
           </div>
         </div>
@@ -457,7 +463,7 @@ export default function InterviewPage() {
           <p className="text-slate-300 text-sm font-semibold mb-3">진행 방식</p>
           <div className="grid grid-cols-2 gap-2">
             <InfoPill label="시간" value="5~10분" />
-            <InfoPill label="턴수" value="3~4회" />
+            <InfoPill label="턴수" value="5~6회" />
             <InfoPill label="입력" value="영어 음성" />
             <InfoPill label="피드백" value="종료 후" />
           </div>
@@ -525,7 +531,7 @@ export default function InterviewPage() {
     );
   }
 
-  // ── FEEDBACK ──��───────────────────────────────────────────────────────────
+  // ── FEEDBACK ─────────────────────────────────────────────────────────────
   if (stage === "feedback" && feedback) {
     return (
       <main className="min-h-screen bg-slate-950 flex flex-col max-w-md mx-auto px-4 pt-6 pb-10">
@@ -542,43 +548,135 @@ export default function InterviewPage() {
         </div>
 
         <div className="flex flex-col gap-4">
+          {/* Best Answer */}
           <div className="bg-slate-800 border border-green-800 rounded-2xl p-5">
             <div className="flex items-center gap-2 mb-3">
               <span className="text-green-400 text-lg">✓</span>
               <p className="text-green-400 text-sm font-semibold">가장 좋았던 답변</p>
             </div>
-            <p className="text-slate-400 text-xs mb-1">{feedback.bestAnswer.question}</p>
-            <p className="text-white text-sm leading-relaxed mb-3">{feedback.bestAnswer.answer}</p>
-            <p className="text-slate-300 text-xs leading-relaxed border-t border-slate-700 pt-3">
+            <p className="text-slate-400 text-xs mb-0.5">{feedback.bestAnswer.question}</p>
+            {showBestKo && feedback.bestAnswer.questionKo && (
+              <p className="text-slate-500 text-xs mb-2 italic">{feedback.bestAnswer.questionKo}</p>
+            )}
+            <p className="text-white text-sm leading-relaxed mt-2 mb-2">{feedback.bestAnswer.answer}</p>
+            {showBestKo && feedback.bestAnswer.answerKo && (
+              <p className="text-green-200/70 text-xs leading-relaxed italic">{feedback.bestAnswer.answerKo}</p>
+            )}
+            {(feedback.bestAnswer.questionKo || feedback.bestAnswer.answerKo) && (
+              <button
+                onClick={() => setShowBestKo(!showBestKo)}
+                className="mt-2 text-slate-500 text-xs underline underline-offset-2"
+              >
+                {showBestKo ? "한국어 닫기" : "한국어로 보기"}
+              </button>
+            )}
+            <p className="text-slate-300 text-xs leading-relaxed border-t border-slate-700 pt-3 mt-3">
               {feedback.bestAnswer.reasonKo}
             </p>
           </div>
 
+          {/* Worst Answer */}
           <div className="bg-slate-800 border border-orange-800 rounded-2xl p-5">
             <div className="flex items-center gap-2 mb-3">
               <span className="text-orange-400 text-lg">△</span>
               <p className="text-orange-400 text-sm font-semibold">가장 위험했던 답변</p>
             </div>
-            <p className="text-slate-400 text-xs mb-1">{feedback.worstAnswer.question}</p>
-            <p className="text-white text-sm leading-relaxed mb-3">{feedback.worstAnswer.answer}</p>
-            <p className="text-slate-300 text-xs leading-relaxed border-t border-slate-700 pt-3">
+            <p className="text-slate-400 text-xs mb-0.5">{feedback.worstAnswer.question}</p>
+            {showWorstKo && feedback.worstAnswer.questionKo && (
+              <p className="text-slate-500 text-xs mb-2 italic">{feedback.worstAnswer.questionKo}</p>
+            )}
+            <p className="text-white text-sm leading-relaxed mt-2 mb-2">{feedback.worstAnswer.answer}</p>
+            {showWorstKo && feedback.worstAnswer.answerKo && (
+              <p className="text-orange-200/70 text-xs leading-relaxed italic">{feedback.worstAnswer.answerKo}</p>
+            )}
+            {(feedback.worstAnswer.questionKo || feedback.worstAnswer.answerKo) && (
+              <button
+                onClick={() => setShowWorstKo(!showWorstKo)}
+                className="mt-2 text-slate-500 text-xs underline underline-offset-2"
+              >
+                {showWorstKo ? "한국어 닫기" : "한국어로 보기"}
+              </button>
+            )}
+            <p className="text-slate-300 text-xs leading-relaxed border-t border-slate-700 pt-3 mt-3">
               {feedback.worstAnswer.reasonKo}
             </p>
           </div>
 
+          {/* Next Focus */}
           <div className="bg-indigo-950 border border-indigo-800 rounded-2xl p-5">
             <p className="text-indigo-300 text-sm font-semibold mb-2">다음에 반드시 고칠 것</p>
             <p className="text-white text-sm leading-relaxed">{feedback.nextFocusKo}</p>
           </div>
 
+          {/* Improvement Sentences */}
           <div className="bg-slate-800 border border-slate-700 rounded-2xl p-5">
             <p className="text-slate-300 text-sm font-semibold mb-3">바로 쓸 수 있는 문장</p>
             <div className="flex flex-col gap-2">
               {feedback.improvementSentences.map((s, i) => (
-                <div key={i} className="bg-slate-700 rounded-xl px-4 py-3 text-white text-sm">{s}</div>
+                <div key={i} className="bg-slate-700 rounded-xl px-4 py-3">
+                  <p className="text-white text-sm">{s}</p>
+                  {feedback.improvementSentencesKo?.[i] && (
+                    <>
+                      <button
+                        onClick={() =>
+                          setShownSentencesKo((prev) => {
+                            const next = new Set(prev);
+                            if (next.has(i)) next.delete(i); else next.add(i);
+                            return next;
+                          })
+                        }
+                        className="mt-1.5 text-slate-500 text-xs underline underline-offset-2"
+                      >
+                        {shownSentencesKo.has(i) ? "한국어 닫기" : "한국어로 보기"}
+                      </button>
+                      {shownSentencesKo.has(i) && (
+                        <p className="text-slate-300 text-xs mt-2 leading-relaxed italic">
+                          {feedback.improvementSentencesKo![i]}
+                        </p>
+                      )}
+                    </>
+                  )}
+                </div>
               ))}
             </div>
           </div>
+
+          {/* Full Conversation Review */}
+          {feedback.qa && feedback.qa.length > 0 && (
+            <div className="bg-slate-800 border border-slate-700 rounded-2xl p-5">
+              <button
+                onClick={() => setShowFullConversation(!showFullConversation)}
+                className="flex items-center justify-between w-full"
+              >
+                <p className="text-slate-300 text-sm font-semibold">전체 대화 복기</p>
+                <span className="text-slate-400 text-xs">
+                  {showFullConversation ? "▲ 접기" : `▼ ${feedback.qa.length}문항 보기`}
+                </span>
+              </button>
+              {showFullConversation && (
+                <div className="mt-4 flex flex-col gap-5">
+                  {feedback.qa.map((pair, i) => (
+                    <div key={i} className={i > 0 ? "border-t border-slate-700 pt-4" : ""}>
+                      <div className="mb-3">
+                        <p className="text-slate-500 text-xs font-medium mb-1">Q{i + 1}</p>
+                        <p className="text-slate-300 text-sm">{pair.q}</p>
+                        {pair.qKo && (
+                          <p className="text-slate-500 text-xs mt-1 italic">{pair.qKo}</p>
+                        )}
+                      </div>
+                      <div>
+                        <p className="text-slate-500 text-xs font-medium mb-1">내 답변</p>
+                        <p className="text-white text-sm leading-relaxed">{pair.a}</p>
+                        {pair.aKo && (
+                          <p className="text-slate-400 text-xs mt-1.5 italic leading-relaxed">{pair.aKo}</p>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
 
           {saveNoteError && (
             <p className="text-red-300 text-xs leading-relaxed -mb-2">{saveNoteError}</p>
