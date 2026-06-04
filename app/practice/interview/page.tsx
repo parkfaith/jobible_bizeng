@@ -64,6 +64,8 @@ export default function InterviewPage() {
   const dcRef = useRef<RTCDataChannel | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const remoteStreamRef = useRef<MediaStream | null>(null); // iOS 전환 시 재연결용
+  const connectedRef = useRef(false); // 연결 확립 여부 (cleanup 가드)
   const turnsRef = useRef<Turn[]>([]);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const transcriptEndRef = useRef<HTMLDivElement | null>(null);
@@ -99,6 +101,10 @@ export default function InterviewPage() {
   }
 
   function startInterview() {
+    // iOS Safari 오디오 잠금 해제 — 사용자 제스처 컨텍스트에서 미리 play() 호출
+    if (audioRef.current) {
+      audioRef.current.play().catch(() => {});
+    }
     setTurns([]);
     setFeedback(null);
     setErrorMsg("");
@@ -106,10 +112,12 @@ export default function InterviewPage() {
     setSavingNote(false);
     setSaveNoteError("");
     setElapsedSec(0);
+    connectedRef.current = false;
     setStage("connecting");
   }
 
   const endInterview = useCallback(async () => {
+    connectedRef.current = false;
     setStage("ending");
     if (timerRef.current) clearInterval(timerRef.current);
 
@@ -194,10 +202,15 @@ export default function InterviewPage() {
         const pc = new RTCPeerConnection();
         pcRef.current = pc;
 
-        const audio = new Audio();
-        audio.autoplay = true;
-        audioRef.current = audio;
-        pc.ontrack = (e) => { audio.srcObject = e.streams[0]; };
+        // iOS Safari: new Audio()는 DOM 밖 생성이라 자동재생 차단됨
+        // JSX의 <audio ref={audioRef}> 엘리먼트를 직접 사용
+        pc.ontrack = (e) => {
+          remoteStreamRef.current = e.streams[0];
+          if (audioRef.current) {
+            audioRef.current.srcObject = e.streams[0];
+            audioRef.current.play().catch(() => {});
+          }
+        };
 
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
         streamRef.current = stream;
@@ -239,6 +252,7 @@ export default function InterviewPage() {
         await pc.setRemoteDescription({ type: "answer", sdp: answerSdp });
 
         if (!cancelled) {
+          connectedRef.current = true;
           setStage("interviewing");
           timerRef.current = setInterval(
             () => setElapsedSec((s) => {
@@ -306,16 +320,27 @@ export default function InterviewPage() {
     return () => {
       cancelled = true;
       if (timerRef.current) clearInterval(timerRef.current);
-      dcRef.current?.close();
-      pcRef.current?.close();
-      streamRef.current?.getTracks().forEach((t) => t.stop());
-      streamRef.current = null;
-      if (audioRef.current) {
-        audioRef.current.pause();
-        audioRef.current.srcObject = null;
+      // 연결이 확립된 경우(interviewing)는 endInterview()가 정리
+      // 연결 시도 중 stage가 바뀐 경우(취소/오류)에만 여기서 정리
+      if (!connectedRef.current) {
+        dcRef.current?.close();
+        pcRef.current?.close();
+        streamRef.current?.getTracks().forEach((t) => t.stop());
+        streamRef.current = null;
+        if (audioRef.current) {
+          audioRef.current.srcObject = null;
+        }
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stage]);
+
+  // connecting→interviewing 전환 시 audio 엘리먼트가 리마운트되므로 srcObject 재연결
+  useEffect(() => {
+    if (stage === "interviewing" && audioRef.current && remoteStreamRef.current) {
+      audioRef.current.srcObject = remoteStreamRef.current;
+      audioRef.current.play().catch(() => {});
+    }
   }, [stage]);
 
   useEffect(() => {
@@ -459,10 +484,12 @@ export default function InterviewPage() {
     );
   }
 
-  // ── CONNECTING ──────��─────────────────────────────────────────────────────
+  // ── CONNECTING ────────────────────────────────────────────────────────────
   if (stage === "connecting") {
     return (
       <main className="min-h-screen bg-slate-950 flex flex-col items-center justify-center gap-5 px-4">
+        {/* iOS Safari: DOM에 실제 audio 엘리먼트 필요 — new Audio()는 자동재생 차단됨 */}
+        <audio ref={audioRef} autoPlay playsInline className="hidden" />
         <div className="w-14 h-14 rounded-full border-4 border-indigo-500 border-t-transparent animate-spin" />
         <p className="text-white font-semibold text-lg">연결 중...</p>
         <p className="text-slate-400 text-sm text-center">마이크 권한 요청이 뜨면 허용해 주세요</p>
@@ -611,6 +638,8 @@ export default function InterviewPage() {
 
   return (
     <main className="min-h-screen bg-slate-950 flex flex-col max-w-md mx-auto">
+      {/* iOS Safari: connecting→interviewing 전환 시 리마운트되므로 srcObject는 useEffect로 재연결 */}
+      <audio ref={audioRef} autoPlay playsInline className="hidden" />
       <div className="flex items-center gap-3 px-4 pt-5 pb-3 border-b border-slate-800">
         <div className="flex items-center gap-2 flex-1">
           <span className={`w-8 h-8 rounded-xl ${scenario.color.bg} ${scenario.color.border} border flex items-center justify-center text-base`}>

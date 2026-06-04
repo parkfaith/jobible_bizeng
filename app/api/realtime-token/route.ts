@@ -95,7 +95,7 @@ Use this topic as the main thread of the interview.`
     body: JSON.stringify({
       session: {
         type: "realtime",
-        model: process.env.OPENAI_REALTIME_MODEL ?? "gpt-realtime",
+        model: process.env.OPENAI_REALTIME_MODEL ?? "gpt-4o-realtime-preview",
         instructions,
         output_modalities: ["audio"],
         audio: {
