@@ -260,16 +260,6 @@ export default function InterviewPage() {
         if (!cancelled) {
           connectedRef.current = true;
           setStage("interviewing");
-          timerRef.current = setInterval(
-            () => setElapsedSec((s) => {
-              const next = s + 1;
-              if (next >= MAX_INTERVIEW_SECONDS) {
-                window.setTimeout(() => endInterviewRef.current(), 0);
-              }
-              return next;
-            }),
-            1000
-          );
         }
       } catch (err) {
         if (!cancelled) {
@@ -325,8 +315,7 @@ export default function InterviewPage() {
     connect();
     return () => {
       cancelled = true;
-      if (timerRef.current) clearInterval(timerRef.current);
-      // 연결이 확립된 경우(interviewing)는 endInterview()가 정리
+      // 연결이 확립된 경우(interviewing)는 타이머 전용 effect가 정리
       // 연결 시도 중 stage가 바뀐 경우(취소/오류)에만 여기서 정리
       if (!connectedRef.current) {
         dcRef.current?.close();
@@ -347,6 +336,27 @@ export default function InterviewPage() {
       audioRef.current.srcObject = remoteStreamRef.current;
       audioRef.current.play().catch(() => {});
     }
+  }, [stage]);
+
+  // 타이머: interviewing 단계에서만 시작 — stage 변경 시 cleanup이 자동 정리
+  useEffect(() => {
+    if (stage !== "interviewing") return;
+    timerRef.current = setInterval(
+      () => setElapsedSec((s) => {
+        const next = s + 1;
+        if (next >= MAX_INTERVIEW_SECONDS) {
+          window.setTimeout(() => endInterviewRef.current(), 0);
+        }
+        return next;
+      }),
+      1000
+    );
+    return () => {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
+    };
   }, [stage]);
 
   useEffect(() => {

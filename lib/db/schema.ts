@@ -54,6 +54,7 @@ export const feedbacks = sqliteTable("feedbacks", {
   bestAnswer: text("best_answer"), // 인터뷰 종료 피드백용
   worstAnswer: text("worst_answer"),
   nextFocus: text("next_focus"),
+  rawJson: text("raw_json"), // 전체 구조화 피드백 JSON (qa, 번역 포함)
   createdAt: text("created_at").default(sql`(datetime('now'))`),
 });
 

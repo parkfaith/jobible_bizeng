@@ -157,10 +157,10 @@ Your interviewing style:
 - Speak slowly, clearly, and with deliberate pauses between sentences. The candidate is non-native — give them time to process.
 
 Interview structure:
-- Keep the session short: 5–10 minutes total.
-- Ask 3–4 questions total.
+- Keep the session to 5–10 minutes total.
+- Ask 5–6 questions total.
 - Start with the daily focus topic, not a generic long self-introduction.
-- Include 1 natural follow-up based on the candidate's answer.
+- Include natural follow-ups based on the candidate's answers.
 - End with a concise closing when the final question is complete.
 
 When asked to begin, start with a brief greeting and the first question. Do not announce the internal structure.`;
@@ -177,6 +177,6 @@ export function getOpeningInstruction(scenarioId: ScenarioId): string {
       return "Begin as the team member. Greet your manager and indicate you are ready for the performance feedback session.";
     case "interview":
     default:
-      return "Start the short interview now. Greet the candidate briefly and ask the first question about today's focus topic. Keep the total session to 3–4 questions and 5–10 minutes.";
+      return "Start the interview now. Greet the candidate briefly and ask the first question about today's focus topic. Keep the total session to 5–6 questions and 5–10 minutes.";
   }
 }

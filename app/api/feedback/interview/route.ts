@@ -9,6 +9,43 @@ interface Turn {
   text: string;
 }
 
+function normalizeFeedback(raw: Record<string, unknown>) {
+  const asStr = (v: unknown, fallback = "") =>
+    typeof v === "string" ? v : fallback;
+  const asStrArray = (v: unknown): string[] =>
+    Array.isArray(v) ? (v as unknown[]).filter((s): s is string => typeof s === "string") : [];
+  const asObj = (v: unknown): Record<string, unknown> =>
+    v && typeof v === "object" && !Array.isArray(v)
+      ? (v as Record<string, unknown>)
+      : {};
+
+  const best = asObj(raw?.bestAnswer);
+  const worst = asObj(raw?.worstAnswer);
+
+  return {
+    bestAnswer: {
+      question: asStr(best.question),
+      questionKo: asStr(best.questionKo),
+      answer: asStr(best.answer),
+      answerKo: asStr(best.answerKo),
+      reasonKo: asStr(best.reasonKo),
+    },
+    worstAnswer: {
+      question: asStr(worst.question),
+      questionKo: asStr(worst.questionKo),
+      answer: asStr(worst.answer),
+      answerKo: asStr(worst.answerKo),
+      reasonKo: asStr(worst.reasonKo),
+    },
+    nextFocusKo: asStr(raw?.nextFocusKo),
+    improvementSentences: asStrArray(raw?.improvementSentences),
+    improvementSentencesKo: asStrArray(raw?.improvementSentencesKo),
+    qa: Array.isArray(raw?.qa)
+      ? (raw.qa as unknown[]).filter((item) => item && typeof item === "object")
+      : [],
+  };
+}
+
 export async function POST(req: Request) {
   const { turns, sessionId }: { turns: Turn[]; sessionId?: number } = await req.json();
 
@@ -96,9 +133,10 @@ qa: extract ALL main question-answer pairs from the transcript as structured obj
   }
 
   const data = await res.json();
-  let feedback: ReturnType<typeof JSON.parse>;
+  let feedback: ReturnType<typeof normalizeFeedback>;
   try {
-    feedback = JSON.parse(data.choices[0].message.content);
+    const raw = JSON.parse(data.choices[0].message.content) as Record<string, unknown>;
+    feedback = normalizeFeedback(raw);
   } catch {
     console.error("interview feedback JSON parse failed", data.choices?.[0]?.message?.content);
     return NextResponse.json({ error: "Failed to parse interview feedback" }, { status: 500 });
@@ -108,11 +146,12 @@ qa: extract ALL main question-answer pairs from the transcript as structured obj
     try {
       await db.insert(feedbacks).values({
         sessionId,
-        feedbackKo: feedback.nextFocusKo ?? "",
+        feedbackKo: feedback.nextFocusKo,
         bestAnswer: JSON.stringify(feedback.bestAnswer),
         worstAnswer: JSON.stringify(feedback.worstAnswer),
         nextFocus: feedback.nextFocusKo,
-        keyExpressions: JSON.stringify(feedback.improvementSentences ?? []),
+        keyExpressions: JSON.stringify(feedback.improvementSentences),
+        rawJson: JSON.stringify(feedback),
       });
     } catch (err) {
       console.error("interview feedback DB save failed", err);
