@@ -120,7 +120,8 @@ export default async function StatsPage() {
   ];
 
   return (
-    <main className="min-h-screen bg-slate-950 flex flex-col max-w-md mx-auto px-4 pt-7 bottom-safe">
+    <div className="h-dvh flex flex-col max-w-md mx-auto bg-slate-950">
+      <main className="flex-1 overflow-y-auto overscroll-contain px-4 pt-7 pb-4">
       {/* Header */}
       <div className="flex items-center gap-3 mb-5">
         <Link href="/" className="tap-target flex items-center justify-center text-slate-400 text-2xl leading-none">
@@ -343,8 +344,10 @@ export default async function StatsPage() {
         )}
       </section>
 
-      {/* Bottom Nav */}
-      <nav className="bottom-nav fixed bottom-0 left-0 right-0 bg-slate-900 border-t border-slate-800 flex justify-around pt-3">
+      </main>
+
+      {/* Bottom Nav — flex item (not fixed) to avoid iOS touch-event swallowing */}
+      <nav className="bottom-nav shrink-0 bg-slate-900 border-t border-slate-800 flex justify-around pt-3">
         <Link href="/" className="tap-target flex flex-col items-center justify-center gap-1 text-slate-500">
           <span className="text-xl">🏠</span>
           <span className="text-xs">홈</span>
@@ -366,6 +369,6 @@ export default async function StatsPage() {
           <span className="text-xs">통계</span>
         </Link>
       </nav>
-    </main>
+    </div>
   );
 }

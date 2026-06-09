@@ -10,31 +10,34 @@ export default async function NotesPage() {
   const notes = await db.select().from(answerNotes).orderBy(desc(answerNotes.updatedAt));
 
   return (
-    <main className="min-h-screen bg-slate-950 flex flex-col max-w-md mx-auto px-4 pt-6 bottom-safe">
-      {/* Header */}
-      <div className="flex items-center gap-3 mb-5">
-        <Link href="/" className="tap-target flex items-center justify-center text-slate-400 text-2xl leading-none">
-          ←
-        </Link>
-        <div className="w-11 h-11 rounded-2xl bg-indigo-500/15 border border-indigo-500/30 flex items-center justify-center text-2xl shrink-0">
-          📓
+    <div className="h-dvh flex flex-col max-w-md mx-auto bg-slate-950">
+      {/* Scrollable content */}
+      <div className="flex-1 overflow-y-auto overscroll-contain px-4 pt-6 pb-4">
+        {/* Header */}
+        <div className="flex items-center gap-3 mb-5">
+          <Link href="/" className="tap-target flex items-center justify-center text-slate-400 text-2xl leading-none">
+            ←
+          </Link>
+          <div className="w-11 h-11 rounded-2xl bg-indigo-500/15 border border-indigo-500/30 flex items-center justify-center text-2xl shrink-0">
+            📓
+          </div>
+          <div>
+            <h1 className="text-white font-bold text-lg">답변 노트</h1>
+            <p className="text-slate-500 text-xs">총 {notes.length}개</p>
+          </div>
+          <Link
+            href="/practice/interview"
+            className="tap-target ml-auto bg-indigo-600 text-white text-xs px-3 rounded-lg font-medium flex items-center"
+          >
+            면접 시작
+          </Link>
         </div>
-        <div>
-          <h1 className="text-white font-bold text-lg">답변 노트</h1>
-          <p className="text-slate-500 text-xs">총 {notes.length}개</p>
-        </div>
-        <Link
-          href="/practice/interview"
-          className="tap-target ml-auto bg-indigo-600 text-white text-xs px-3 rounded-lg font-medium flex items-center"
-        >
-          면접 시작
-        </Link>
+
+        <NotesClient initialNotes={notes} />
       </div>
 
-      <NotesClient initialNotes={notes} />
-
-      {/* Bottom Nav */}
-      <nav className="bottom-nav fixed bottom-0 left-0 right-0 bg-slate-900 border-t border-slate-800 flex justify-around pt-3">
+      {/* Bottom Nav — flex item (not fixed) to avoid iOS touch-event swallowing */}
+      <nav className="bottom-nav shrink-0 bg-slate-900 border-t border-slate-800 flex justify-around pt-3">
         <Link href="/" className="tap-target flex flex-col items-center justify-center gap-1 text-slate-500">
           <span className="text-xl">🏠</span>
           <span className="text-xs">홈</span>
@@ -56,6 +59,6 @@ export default async function NotesPage() {
           <span className="text-xs">통계</span>
         </Link>
       </nav>
-    </main>
+    </div>
   );
 }
