@@ -77,7 +77,7 @@ export default async function HomePage() {
   };
 
   return (
-    <div className="h-dvh flex flex-col max-w-md mx-auto bg-slate-950">
+    <div className="h-full flex flex-col max-w-md mx-auto bg-slate-950">
       <main className="flex-1 overflow-y-auto overscroll-contain px-4 pt-8 pb-4">
       {/* Header */}
       <div className="mb-6 flex items-center gap-3">

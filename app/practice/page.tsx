@@ -465,7 +465,7 @@ function PracticeContent() {
 
       {/* Mic area */}
       {(stage === "idle" || stage === "recording") && (
-        <div className="sticky bottom-0 -mx-4 flex flex-col items-center gap-4 mt-4 bg-slate-950/95 px-4 pb-6 pt-4 backdrop-blur">
+        <div className="sticky bottom-0 -mx-4 flex flex-col items-center gap-4 mt-4 bg-slate-950/95 px-4 pb-safe pt-4 backdrop-blur">
           {stage === "recording" && (
             <div className="flex items-center gap-2">
               <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />

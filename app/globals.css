@@ -15,6 +15,7 @@ html {
 }
 
 body {
+  height: 100%;
   min-height: 100%;
   background: #020617;
   padding-top: env(safe-area-inset-top);
@@ -49,7 +50,8 @@ summary {
 }
 
 .bottom-nav {
-  padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
+  /* body가 이미 safe-area-inset-bottom 만큼 패딩하므로 여기선 시각적 여백만 준다 (중복 방지) */
+  padding-bottom: 0.75rem;
   z-index: 100;
   pointer-events: auto;
   transform: translateZ(0);
@@ -68,6 +70,11 @@ summary {
 
 .bottom-safe {
   padding-bottom: calc(6rem + env(safe-area-inset-bottom));
+}
+
+/* 화면 하단에 붙는 sticky 바용 — 홈 인디케이터를 피하면서 최소 여백 보장 */
+.pb-safe {
+  padding-bottom: max(1.5rem, env(safe-area-inset-bottom));
 }
 
 @keyframes route-progress {

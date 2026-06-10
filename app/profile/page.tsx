@@ -107,7 +107,7 @@ export default function ProfilePage() {
   }
 
   return (
-    <main className="min-h-screen bg-slate-950 flex flex-col max-w-md mx-auto px-4 pt-6 pb-32">
+    <main className="min-h-screen bg-slate-950 flex flex-col max-w-md mx-auto px-4 pt-6">
       {/* Header */}
       <div className="flex items-center gap-3 mb-7">
         <Link
@@ -205,8 +205,8 @@ export default function ProfilePage() {
         </div>
       </Section>
 
-      {/* Save button — fixed bottom */}
-      <div className="fixed bottom-0 left-0 right-0 px-4 pb-6 pt-3 bg-slate-950 border-t border-slate-800 max-w-md mx-auto">
+      {/* Save button — sticky bottom (fixed는 iOS 터치 이벤트를 삼켜서 sticky로 전환) */}
+      <div className="sticky bottom-0 mt-auto -mx-4 px-4 pb-safe pt-3 bg-slate-950 border-t border-slate-800">
         <button
           onClick={handleSave}
           disabled={!targetPosition.trim() || !currentRole.trim() || !yearsExp || saving}
