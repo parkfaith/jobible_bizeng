@@ -69,7 +69,7 @@ export default async function ReviewPage({
   const isNextDisabled = selectedMonth >= currentMonth;
 
   return (
-    <div className="h-full flex flex-col max-w-md mx-auto bg-slate-950">
+    <div className="app-shell flex flex-col max-w-md mx-auto bg-slate-950">
       <main className="flex-1 overflow-y-auto overscroll-contain px-4 pt-7 pb-4">
       {/* Header */}
       <div className="flex items-center gap-3 mb-5">

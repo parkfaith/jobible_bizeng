@@ -10,7 +10,7 @@ export default async function NotesPage() {
   const notes = await db.select().from(answerNotes).orderBy(desc(answerNotes.updatedAt));
 
   return (
-    <div className="h-full flex flex-col max-w-md mx-auto bg-slate-950">
+    <div className="app-shell flex flex-col max-w-md mx-auto bg-slate-950">
       {/* Scrollable content */}
       <div className="flex-1 overflow-y-auto overscroll-contain px-4 pt-6 pb-4">
         {/* Header */}

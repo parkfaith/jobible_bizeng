@@ -49,9 +49,16 @@ summary {
   cursor: pointer;
 }
 
+/* nav가 있는 화면의 셸 — body 하단 안전영역 위로 확장해 nav가 물리적 바닥까지 닿게 한다.
+   음수 margin으로 body 높이는 그대로 유지(스크롤/오버플로 없음). 다른 화면은 영향 없음. */
+.app-shell {
+  height: calc(100% + env(safe-area-inset-bottom));
+  margin-bottom: calc(-1 * env(safe-area-inset-bottom));
+}
+
 .bottom-nav {
-  /* body가 이미 safe-area-inset-bottom 만큼 패딩하므로 여기선 시각적 여백만 준다 (중복 방지) */
-  padding-bottom: 0.75rem;
+  /* nav가 하단 안전영역을 직접 소유: 배경은 바닥까지, 콘텐츠는 홈 인디케이터 위로 */
+  padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
   z-index: 100;
   pointer-events: auto;
   transform: translateZ(0);
