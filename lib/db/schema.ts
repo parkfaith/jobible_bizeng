@@ -55,6 +55,7 @@ export const feedbacks = sqliteTable("feedbacks", {
   worstAnswer: text("worst_answer"),
   nextFocus: text("next_focus"),
   rawJson: text("raw_json"), // 전체 구조화 피드백 JSON (qa, 번역 포함)
+  noteId: integer("note_id").references(() => answerNotes.id), // 마스터 모드 재도전 이력 연결
   createdAt: text("created_at").default(sql`(datetime('now'))`),
 });
 

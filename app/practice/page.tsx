@@ -23,6 +23,28 @@ interface Feedback {
   improvedAnswerEn: string;
   keyExpressions: string[];
   patternUsageKo?: string;
+  progressKo?: string;
+}
+
+interface NoteData {
+  id: number;
+  category: string;
+  questionText: string;
+  originalAnswer: string | null;
+  improvedAnswer: string | null;
+  finalAnswer: string | null;
+}
+
+interface Attempt {
+  feedbackId: number;
+  contentScore: number | null;
+  structureScore: number | null;
+  englishScore: number | null;
+  leadershipScore: number | null;
+  feedbackKo: string;
+  improvedAnswerEn: string | null;
+  createdAt: string | null;
+  transcript: string | null;
 }
 
 const SCORE_LABELS = [
@@ -32,7 +54,7 @@ const SCORE_LABELS = [
   { key: "leadershipScore", label: "리더십 톤" },
 ] as const;
 
-function ScoreBar({ score, label }: { score: number; label: string }) {
+function ScoreBar({ score, label, delta }: { score: number; label: string; delta?: number }) {
   return (
     <div className="flex items-center gap-3">
       <span className="text-slate-400 text-xs w-16 shrink-0">{label}</span>
@@ -47,6 +69,15 @@ function ScoreBar({ score, label }: { score: number; label: string }) {
         ))}
       </div>
       <span className="text-slate-300 text-xs w-4 text-right">{score}</span>
+      {delta !== undefined && (
+        <span
+          className={`text-xs w-7 text-right font-medium ${
+            delta > 0 ? "text-green-400" : delta < 0 ? "text-orange-400" : "text-slate-500"
+          }`}
+        >
+          {delta > 0 ? `+${delta}` : delta < 0 ? `${delta}` : "="}
+        </span>
+      )}
     </div>
   );
 }
@@ -55,13 +86,18 @@ function PracticeContent() {
   const searchParams = useSearchParams();
   const source = searchParams.get("source") ?? "pattern";
   const weeklyDate = searchParams.get("date");
+  const noteIdParam = Number(searchParams.get("noteId"));
   const isPatternPractice = source === "pattern";
   const isWeeklyPractice = source === "weekly";
+  const isNotePractice = source === "note";
 
   const [stage, setStage] = useState<Stage>("loading");
   const [question, setQuestion] = useState<DailyQuestion | null>(null);
   const [patternSet, setPatternSet] = useState<DailyPatternSet | null>(null);
   const [weeklySummary, setWeeklySummary] = useState<WeeklySummarySet | null>(null);
+  const [note, setNote] = useState<NoteData | null>(null);
+  const [attempts, setAttempts] = useState<Attempt[]>([]);
+  const [showFinalAnswer, setShowFinalAnswer] = useState(false);
   const [transcript, setTranscript] = useState("");
   const [feedback, setFeedback] = useState<Feedback | null>(null);
   const [recordingSeconds, setRecordingSeconds] = useState(0);
@@ -98,6 +134,36 @@ function PracticeContent() {
 
   useEffect(() => {
     const controller = new AbortController();
+
+    if (isNotePractice) {
+      if (!noteIdParam) {
+        setError("노트를 찾을 수 없습니다. 답변 노트에서 다시 시도해 주세요.");
+        setStage("idle");
+        return () => controller.abort();
+      }
+      Promise.all([
+        fetch(`/api/notes?id=${noteIdParam}`, { cache: "no-store", signal: controller.signal }).then((r) => r.json()),
+        fetch(`/api/notes/attempts?noteId=${noteIdParam}`, { cache: "no-store", signal: controller.signal }).then((r) => r.json()),
+      ])
+        .then(([noteData, attemptsData]) => {
+          if (noteData.error) throw new Error(noteData.error);
+          setNote(noteData);
+          setAttempts(Array.isArray(attemptsData.attempts) ? attemptsData.attempts : []);
+          setQuestion({
+            question: noteData.questionText,
+            category: noteData.category,
+            hint: "최종 답변을 떠올리며 보지 않고 말해보세요. 막히면 아래에서 답변을 펼쳐볼 수 있습니다.",
+          });
+          setStage("idle");
+        })
+        .catch((err) => {
+          if (err instanceof DOMException && err.name === "AbortError") return;
+          setError("노트를 불러오지 못했습니다. 잠시 후 다시 시도해주세요.");
+          setStage("idle");
+        });
+      return () => controller.abort();
+    }
+
     let endpoint: string;
     if (isWeeklyPractice) {
       const params = new URLSearchParams();
@@ -140,7 +206,7 @@ function PracticeContent() {
       });
 
     return () => controller.abort();
-  }, [isPatternPractice, isWeeklyPractice, weeklyDate]);
+  }, [isPatternPractice, isWeeklyPractice, isNotePractice, noteIdParam, weeklyDate]);
 
   const startRecording = useCallback(async () => {
     setError("");
@@ -222,6 +288,10 @@ function PracticeContent() {
             category: question?.category,
             patternSet: patternSet ?? (weeklySummary ? { topic: "Weekly Rehearsal", exercise: { question: weeklySummary.rehearsalQuestion, structure: weeklySummary.answerStructure } } : null),
             sessionId,
+            noteId: isNotePractice && note ? note.id : undefined,
+            previousAnswer: isNotePractice
+              ? attempts[0]?.transcript ?? note?.originalAnswer ?? undefined
+              : undefined,
           }),
         });
         if (!fRes.ok) {
@@ -244,7 +314,7 @@ function PracticeContent() {
     };
 
     mediaRecorderRef.current.stop();
-  }, [patternSet, weeklySummary, question]);
+  }, [patternSet, weeklySummary, question, isNotePractice, note, attempts]);
 
   function retry() {
     setTranscript("");
@@ -252,6 +322,23 @@ function PracticeContent() {
     setSaved(false);
     setSaveError("");
     setStage("idle");
+  }
+
+  // 마스터 모드: 중복 노트를 만들지 않고 기존 노트의 최종 답변을 갱신
+  async function updateFinalAnswer() {
+    if (!note || !feedback) return;
+    setSaveError("");
+    try {
+      const res = await fetch("/api/notes", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: note.id, finalAnswer: feedback.improvedAnswerEn }),
+      });
+      if (!res.ok) throw new Error("save failed");
+      setSaved(true);
+    } catch {
+      setSaveError("저장에 실패했습니다. 다시 시도해 주세요.");
+    }
   }
 
   async function saveToNotes() {
@@ -280,6 +367,13 @@ function PracticeContent() {
   const formatTime = (s: number) =>
     `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
 
+  // 마스터 모드: 직전 시도 (점수 델타·답변 비교 기준)
+  const prevAttempt = isNotePractice ? attempts[0] ?? null : null;
+  const prevScores = prevAttempt && prevAttempt.contentScore != null ? prevAttempt : null;
+  const previousAnswerText = isNotePractice
+    ? prevAttempt?.transcript ?? note?.originalAnswer ?? null
+    : null;
+
   return (
     <main className="min-h-screen bg-slate-950 flex flex-col max-w-md mx-auto px-4 pt-6 pb-10">
       {/* Header */}
@@ -294,18 +388,21 @@ function PracticeContent() {
           <p className="text-slate-400 text-xs">
             {isWeeklyPractice
               ? "주말 리허설"
+              : isNotePractice
+              ? "마스터 모드"
               : isPatternPractice
               ? "패턴 기반 질문 연습"
               : "오늘의 질문 연습"}
           </p>
           <h1 className="text-white font-bold text-base leading-tight">
             {isWeeklyPractice && "이번 주 3분 리허설"}
+            {isNotePractice && "핵심 답변 다시 도전"}
             {isPatternPractice && !isWeeklyPractice && "30초 답변 워밍업"}
-            {!isPatternPractice && !isWeeklyPractice && question?.category === "intro" && "자기소개"}
-            {!isPatternPractice && !isWeeklyPractice && question?.category === "career" && "경력 설명"}
-            {!isPatternPractice && !isWeeklyPractice && question?.category === "leadership" && "리더십"}
-            {!isPatternPractice && !isWeeklyPractice && question?.category === "tech" && "기술 프로젝트"}
-            {!isPatternPractice && !isWeeklyPractice && question?.category === "failure" && "실패/갈등"}
+            {!isPatternPractice && !isWeeklyPractice && !isNotePractice && question?.category === "intro" && "자기소개"}
+            {!isPatternPractice && !isWeeklyPractice && !isNotePractice && question?.category === "career" && "경력 설명"}
+            {!isPatternPractice && !isWeeklyPractice && !isNotePractice && question?.category === "leadership" && "리더십"}
+            {!isPatternPractice && !isWeeklyPractice && !isNotePractice && question?.category === "tech" && "기술 프로젝트"}
+            {!isPatternPractice && !isWeeklyPractice && !isNotePractice && question?.category === "failure" && "실패/갈등"}
             {!question?.category && "로딩 중..."}
           </h1>
         </div>
@@ -321,12 +418,33 @@ function PracticeContent() {
       {/* Question card */}
       {question && (
         <div className="bg-slate-800 border border-slate-700 rounded-2xl p-5 mb-4">
-          <p className="text-slate-400 text-xs mb-2 font-medium">면접 질문</p>
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-slate-400 text-xs font-medium">면접 질문</p>
+            {isNotePractice && attempts.length > 0 && (
+              <p className="text-indigo-300 text-xs">{attempts.length + 1}번째 도전</p>
+            )}
+          </div>
           <p className="text-white text-base leading-relaxed">{question.question}</p>
           {stage === "idle" && question.hint && (
             <p className="text-indigo-300 text-xs mt-3 pt-3 border-t border-slate-700">
               💡 {question.hint}
             </p>
+          )}
+        </div>
+      )}
+
+      {/* 마스터 모드: 최종 답변 — 기본 접힘 (암기 회상 유도) */}
+      {isNotePractice && note?.finalAnswer && (stage === "idle" || stage === "recording") && (
+        <div className="bg-indigo-950 border border-indigo-800 rounded-2xl p-5 mb-4">
+          <button
+            onClick={() => setShowFinalAnswer(!showFinalAnswer)}
+            className="flex items-center justify-between w-full"
+          >
+            <p className="text-indigo-300 text-xs font-medium">내 최종 답변</p>
+            <span className="text-slate-400 text-xs">{showFinalAnswer ? "▲ 접기" : "▼ 보기"}</span>
+          </button>
+          {showFinalAnswer && (
+            <p className="text-white text-sm leading-relaxed mt-3">{note.finalAnswer}</p>
           )}
         </div>
       )}
@@ -397,13 +515,46 @@ function PracticeContent() {
         <div className="flex flex-col gap-4 mb-6">
           {/* Scores */}
           <div className="bg-slate-800 border border-slate-700 rounded-2xl p-5">
-            <p className="text-slate-300 text-sm font-semibold mb-4">평가</p>
+            <div className="flex items-center justify-between mb-4">
+              <p className="text-slate-300 text-sm font-semibold">평가</p>
+              {prevScores && <p className="text-slate-500 text-xs">직전 시도 대비</p>}
+            </div>
             <div className="flex flex-col gap-3">
               {SCORE_LABELS.map(({ key, label }) => (
-                <ScoreBar key={key} score={feedback[key]} label={label} />
+                <ScoreBar
+                  key={key}
+                  score={feedback[key]}
+                  label={label}
+                  delta={prevScores ? feedback[key] - (prevScores[key] ?? 0) : undefined}
+                />
               ))}
             </div>
           </div>
+
+          {/* 마스터 모드: 직전 시도 대비 진전 */}
+          {feedback.progressKo && (
+            <div className="bg-slate-800 border border-indigo-800 rounded-2xl p-5">
+              <p className="text-indigo-300 text-sm font-semibold mb-2">📈 직전 시도 대비 진전</p>
+              <p className="text-white text-sm leading-relaxed">{feedback.progressKo}</p>
+            </div>
+          )}
+
+          {/* 마스터 모드: 직전 답변 vs 이번 답변 */}
+          {isNotePractice && previousAnswerText && (
+            <div className="bg-slate-800 border border-slate-700 rounded-2xl p-5">
+              <p className="text-slate-300 text-sm font-semibold mb-3">직전 답변 vs 이번 답변</p>
+              <div className="flex flex-col gap-3">
+                <div>
+                  <p className="text-slate-500 text-xs mb-1">직전 답변</p>
+                  <p className="text-slate-400 text-sm leading-relaxed">{previousAnswerText}</p>
+                </div>
+                <div className="border-t border-slate-700 pt-3">
+                  <p className="text-indigo-300 text-xs mb-1">이번 답변</p>
+                  <p className="text-white text-sm leading-relaxed">{transcript}</p>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Korean feedback */}
           <div className="bg-slate-800 border border-slate-700 rounded-2xl p-5">
@@ -449,7 +600,7 @@ function PracticeContent() {
               다시 말하기
             </button>
             <button
-              onClick={saveToNotes}
+              onClick={isNotePractice ? updateFinalAnswer : saveToNotes}
               disabled={saved}
               className={`flex-1 py-4 rounded-xl font-semibold text-sm transition-colors ${
                 saved
@@ -457,7 +608,13 @@ function PracticeContent() {
                   : "bg-indigo-600 text-white hover:bg-indigo-500"
               }`}
             >
-              {saved ? "저장됨 ✓" : "답변 노트 저장"}
+              {saved
+                ? isNotePractice
+                  ? "최종 답변 업데이트됨 ✓"
+                  : "저장됨 ✓"
+                : isNotePractice
+                ? "최종 답변으로 업데이트"
+                : "답변 노트 저장"}
             </button>
           </div>
         </div>

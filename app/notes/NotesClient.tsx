@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 
 const CATEGORIES = [
   { key: "all", label: "전체" },
@@ -242,6 +243,16 @@ export default function NotesClient({ initialNotes }: { initialNotes: Note[] }) 
                         ))}
                       </div>
                     </div>
+                  )}
+
+                  {/* 마스터 모드 진입 — 같은 질문 재도전 */}
+                  {!isEditing && (
+                    <Link
+                      href={`/practice?source=note&noteId=${note.id}`}
+                      className="w-full min-h-11 py-2.5 rounded-xl bg-indigo-600 text-white text-sm font-semibold text-center flex items-center justify-center hover:bg-indigo-500 transition-colors"
+                    >
+                      🎙️ 이 질문 다시 도전
+                    </Link>
                   )}
 
                   {/* Action buttons */}

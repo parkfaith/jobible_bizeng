@@ -3,7 +3,18 @@ import { db } from "@/lib/db";
 import { answerNotes } from "@/lib/db/schema";
 import { desc, eq } from "drizzle-orm";
 
-export async function GET() {
+export async function GET(req: Request) {
+  const { searchParams } = new URL(req.url);
+  const id = Number(searchParams.get("id"));
+
+  if (id) {
+    const note = await db.select().from(answerNotes).where(eq(answerNotes.id, id)).limit(1);
+    if (!note[0]) {
+      return NextResponse.json({ error: "Note not found" }, { status: 404 });
+    }
+    return NextResponse.json(note[0]);
+  }
+
   const notes = await db
     .select()
     .from(answerNotes)

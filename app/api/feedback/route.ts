@@ -5,7 +5,8 @@ import { db } from "@/lib/db";
 import { feedbacks, practiceTurns, profile } from "@/lib/db/schema";
 
 export async function POST(req: Request) {
-  const { question, transcript, category, patternSet, sessionId } = await req.json();
+  const { question, transcript, category, patternSet, sessionId, noteId, previousAnswer } =
+    await req.json();
 
   if (!question || !transcript) {
     return NextResponse.json({ error: "Missing question or transcript" }, { status: 400 });
@@ -30,6 +31,16 @@ Answer frame: ${patternSet.exercise?.structure
 
 Include a short patternUsageKo field explaining whether the candidate naturally used today's answer frame or phrases.`
     : "No daily pattern set was provided. Set patternUsageKo to an empty string.";
+
+  const retryCtx =
+    typeof previousAnswer === "string" && previousAnswer.trim()
+      ? `
+This is a RE-ATTEMPT of a core answer the candidate is mastering. Their previous attempt was:
+"${previousAnswer.slice(0, 2000)}"
+
+Add this field to the JSON:
+  "progressKo": "직전 시도 대비 무엇이 좋아졌고 무엇이 남았는지 (한국어, 2문장)"`
+      : "";
 
   const res = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
@@ -69,7 +80,8 @@ feedbackKo: Korean feedback, 3-4 sentences. Direct and practical. Focus on the m
 improvedAnswerEn: A rewritten, improved English answer (2-4 sentences). Keep the candidate's facts but make it more structured and executive-sounding.
 keyExpressions: Exactly 3 English phrases/sentences the candidate can immediately memorize and reuse.
 
-${patternCtx}`,
+${patternCtx}
+${retryCtx}`,
         },
         {
           role: "user",
@@ -114,6 +126,7 @@ ${patternCtx}`,
         feedbackKo: feedback.feedbackKo,
         improvedAnswerEn: feedback.improvedAnswerEn,
         keyExpressions: JSON.stringify(feedback.keyExpressions ?? []),
+        noteId: typeof noteId === "number" ? noteId : null,
       });
     } catch (err) {
       console.error("practice feedback DB save failed", err);
