@@ -91,6 +91,9 @@ function PracticeContent() {
   const isWeeklyPractice = source === "weekly";
   const isNotePractice = source === "note";
 
+  // 마스터 모드인데 noteId가 없는 잘못된 진입 — 렌더에서 파생 (stage는 loading에 머묾)
+  const invalidNoteEntry = isNotePractice && !noteIdParam;
+
   const [stage, setStage] = useState<Stage>("loading");
   const [question, setQuestion] = useState<DailyQuestion | null>(null);
   const [patternSet, setPatternSet] = useState<DailyPatternSet | null>(null);
@@ -136,9 +139,8 @@ function PracticeContent() {
     const controller = new AbortController();
 
     if (isNotePractice) {
+      // noteId가 없으면 렌더 단계에서 invalidNoteEntry로 안내 — effect 내 동기 setState 금지(lint)
       if (!noteIdParam) {
-        setError("노트를 찾을 수 없습니다. 답변 노트에서 다시 시도해 주세요.");
-        setStage("idle");
         return () => controller.abort();
       }
       Promise.all([
@@ -289,8 +291,13 @@ function PracticeContent() {
             patternSet: patternSet ?? (weeklySummary ? { topic: "Weekly Rehearsal", exercise: { question: weeklySummary.rehearsalQuestion, structure: weeklySummary.answerStructure } } : null),
             sessionId,
             noteId: isNotePractice && note ? note.id : undefined,
+            // 첫 재도전의 비교 기준은 암기 대상인 최종 답변 — 시도 이력이 생기면 직전 transcript
             previousAnswer: isNotePractice
-              ? attempts[0]?.transcript ?? note?.originalAnswer ?? undefined
+              ? attempts[0]?.transcript ??
+                note?.finalAnswer ??
+                note?.improvedAnswer ??
+                note?.originalAnswer ??
+                undefined
               : undefined,
           }),
         });
@@ -368,11 +375,17 @@ function PracticeContent() {
     `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
 
   // 마스터 모드: 직전 시도 (점수 델타·답변 비교 기준)
+  // 시도 이력이 없으면 암기 대상인 최종 답변을 비교 기준으로 사용
   const prevAttempt = isNotePractice ? attempts[0] ?? null : null;
   const prevScores = prevAttempt && prevAttempt.contentScore != null ? prevAttempt : null;
   const previousAnswerText = isNotePractice
-    ? prevAttempt?.transcript ?? note?.originalAnswer ?? null
+    ? prevAttempt?.transcript ??
+      note?.finalAnswer ??
+      note?.improvedAnswer ??
+      note?.originalAnswer ??
+      null
     : null;
+  const previousAnswerLabel = prevAttempt?.transcript ? "직전 답변" : "기존 최종 답변";
 
   return (
     <main className="min-h-screen bg-slate-950 flex flex-col max-w-md mx-auto px-4 pt-6 pb-10">
@@ -409,9 +422,11 @@ function PracticeContent() {
       </div>
 
       {/* Error */}
-      {error && (
+      {(invalidNoteEntry || error) && (
         <div className="bg-red-900/40 border border-red-700 rounded-xl px-4 py-3 mb-4 text-red-300 text-sm">
-          {error}
+          {invalidNoteEntry
+            ? "노트를 찾을 수 없습니다. 답변 노트에서 다시 시도해 주세요."
+            : error}
         </div>
       )}
 
@@ -542,10 +557,10 @@ function PracticeContent() {
           {/* 마스터 모드: 직전 답변 vs 이번 답변 */}
           {isNotePractice && previousAnswerText && (
             <div className="bg-slate-800 border border-slate-700 rounded-2xl p-5">
-              <p className="text-slate-300 text-sm font-semibold mb-3">직전 답변 vs 이번 답변</p>
+              <p className="text-slate-300 text-sm font-semibold mb-3">{previousAnswerLabel} vs 이번 답변</p>
               <div className="flex flex-col gap-3">
                 <div>
-                  <p className="text-slate-500 text-xs mb-1">직전 답변</p>
+                  <p className="text-slate-500 text-xs mb-1">{previousAnswerLabel}</p>
                   <p className="text-slate-400 text-sm leading-relaxed">{previousAnswerText}</p>
                 </div>
                 <div className="border-t border-slate-700 pt-3">
@@ -657,7 +672,7 @@ function PracticeContent() {
       )}
 
       {/* Loading spinner */}
-      {stage === "loading" && (
+      {stage === "loading" && !invalidNoteEntry && (
         <div className="flex flex-col items-center gap-4 mt-16">
           <div className="w-8 h-8 rounded-full border-4 border-indigo-500 border-t-transparent animate-spin" />
           <p className="text-slate-500 text-sm">오늘의 질문을 준비하는 중...</p>

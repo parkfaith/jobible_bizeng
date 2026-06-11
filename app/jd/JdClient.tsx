@@ -142,7 +142,7 @@ export default function JdClient({ initialPostings }: { initialPostings: JdListI
                 <p className="text-slate-300 text-xs leading-relaxed mb-3">{jd.summaryKo}</p>
               )}
               <Link
-                href="/practice/interview"
+                href={`/practice/interview?jdId=${jd.id}`}
                 className="w-full min-h-11 py-2.5 rounded-xl bg-sky-600 text-white text-sm font-semibold text-center flex items-center justify-center hover:bg-sky-500 transition-colors"
               >
                 🎙️ 이 공고로 면접 보기

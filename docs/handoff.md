@@ -594,3 +594,29 @@ windows sandbox: setup refresh failed with status exit code: 1
 - `npm run build` 통과 (Phase별 + 최종).
 - `npm run db:push` 2회 적용 완료 (noteId 컬럼, job_postings 테이블) — 모두 additive.
 - 실기기(iPhone) 미검증: 약점 주입 면접 품질, 마스터 모드 흐름, JD 면접, nav 밀착.
+
+### Codex 리뷰 반영 (2026-06-11, 2차)
+
+4건 모두 반영. `npm run lint`(에러 0) / `npm run build` 통과.
+
+1. **P1 ready 단계 자원 누수**: interview/page.tsx에 언마운트 전용 cleanup effect 추가 —
+   dc/pc/stream을 무조건 정리. 이미 닫힌 연결에는 no-op이라 endInterview 흐름과 충돌 없음.
+2. **P1 lint 실패**: practice/page.tsx의 noteId 누락 처리를 effect 내 동기 setState에서
+   렌더 파생 상태(`invalidNoteEntry`)로 변경. 에러 안내는 렌더에서 직접 표시.
+3. **P2 JD 진입 연결**: JdClient 링크를 `/practice/interview?jdId=N`으로 변경.
+   interview 페이지가 useSearchParams(+Suspense 래퍼)로 쿼리를 읽고, JD 목록 fetch 완료 후
+   active 목록에 있으면 해당 JD briefing으로 자동 진입(레이스 없음). 없으면 일반 선택 화면 유지.
+4. **P2 마스터 모드 첫 비교 기준**: `finalAnswer ?? improvedAnswer ?? originalAnswer` 순서로
+   변경(전송 previousAnswer + 화면 비교 카드 동일 기준). 비교 카드 라벨도
+   시도 이력 유무에 따라 "직전 답변"/"기존 최종 답변"으로 구분.
+
+참고: lint 경고 1건(connecting effect cleanup의 audioRef.current)은 기존부터 있던 경고로
+이번 범위 밖. 동작 영향 없음.
+
+### 남은 실기기 테스트 (iPhone)
+
+- ready 단계에서 뒤로가기 후 마이크 표시등이 꺼지는지 (이번 수정 검증)
+- /jd → "이 공고로 면접 보기" → 해당 공고 briefing 자동 진입 → 면접관이 회사/포지션 언급
+- 마스터 모드: 첫 재도전 비교 기준이 최종 답변인지, 2회차부터 직전 답변인지
+- 약점 주입 면접 품질 (2회차 면접에서 "지난번 지적사항 점검" 카드)
+- 하단 nav 밀착 (주소창 접힘 상태 포함, SW 캐시 새로고침 후)

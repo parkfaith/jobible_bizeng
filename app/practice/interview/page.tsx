@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { Suspense, useCallback, useEffect, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import type { DailyPatternSet } from "@/lib/pattern-set";
 import {
@@ -46,7 +47,8 @@ function InfoPill({ label, value }: { label: string; value: string }) {
   );
 }
 
-export default function InterviewPage() {
+function InterviewContent() {
+  const searchParams = useSearchParams();
   const [stage, setStage] = useState<Stage>("scenario_select");
   const [selectedScenarioId, setSelectedScenarioId] = useState<ScenarioId>("interview");
   const [weeklyCount, setWeeklyCount] = useState<number | null>(null);
@@ -85,16 +87,43 @@ export default function InterviewPage() {
       .then((res) => res.json())
       .then((body) => { if (typeof body.count === "number") setWeeklyCount(body.count); })
       .catch(() => {});
+  }, []);
 
+  // JD 목록 로드 + ?jdId= 쿼리 자동 선택 (/jd의 "이 공고로 면접 보기" 진입).
+  // 목록 fetch 완료 후에 선택하므로 레이스 없음. active 목록에 없으면(아카이브 등) 일반 선택 화면 유지.
+  useEffect(() => {
     fetch("/api/jd")
       .then((res) => res.json())
-      .then((body) => { if (Array.isArray(body)) setJdList(body); })
+      .then((body: JdListItem[]) => {
+        if (!Array.isArray(body)) return;
+        setJdList(body);
+        const queryJdId = Number(searchParams.get("jdId"));
+        if (queryJdId && body.some((jd) => jd.id === queryJdId)) {
+          setSelectedScenarioId("interview");
+          selectedScenarioRef.current = "interview";
+          setSelectedJdId(queryJdId);
+          selectedJdIdRef.current = queryJdId;
+          setStage("briefing");
+        }
+      })
       .catch(() => {});
-  }, []);
+  }, [searchParams]);
 
   useEffect(() => { turnsRef.current = turns; }, [turns]);
   useEffect(() => { selectedScenarioRef.current = selectedScenarioId; }, [selectedScenarioId]);
   useEffect(() => { selectedJdIdRef.current = selectedJdId; }, [selectedJdId]);
+
+  // 언마운트 시 연결 자원 무조건 정리 — ready 단계에서 뒤로가기/라우트 이동해도
+  // 마이크와 Realtime 세션이 남지 않게 한다. 이미 닫힌 연결에는 close/stop이 no-op.
+  useEffect(() => {
+    return () => {
+      connectedRef.current = false;
+      dcRef.current?.close();
+      pcRef.current?.close();
+      streamRef.current?.getTracks().forEach((t) => t.stop());
+      streamRef.current = null;
+    };
+  }, []);
 
   const addTurn = useCallback((role: "ai" | "user", text: string) => {
     setTurns((prev) => [...prev, { role, text }]);
@@ -769,5 +798,13 @@ export default function InterviewPage() {
         )}
       </div>
     </main>
+  );
+}
+
+export default function InterviewPage() {
+  return (
+    <Suspense>
+      <InterviewContent />
+    </Suspense>
   );
 }
