@@ -3,11 +3,14 @@ export const maxDuration = 60;
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { feedbacks, profile } from "@/lib/db/schema";
+import { WEAKNESS_TAGS, getRecentWeaknesses } from "@/lib/weakness";
 
 interface Turn {
   role: "ai" | "user";
   text: string;
 }
+
+const WEAKNESS_TAG_SET = new Set<string>(WEAKNESS_TAGS);
 
 function normalizeFeedback(raw: Record<string, unknown>) {
   const asStr = (v: unknown, fallback = "") =>
@@ -43,6 +46,18 @@ function normalizeFeedback(raw: Record<string, unknown>) {
     qa: Array.isArray(raw?.qa)
       ? (raw.qa as unknown[]).filter((item) => item && typeof item === "object")
       : [],
+    weaknesses: Array.isArray(raw?.weaknesses)
+      ? (raw.weaknesses as unknown[])
+          .map((w) => asObj(w))
+          .filter((w) => typeof w.tag === "string" && WEAKNESS_TAG_SET.has(w.tag as string))
+          .map((w) => ({
+            tag: asStr(w.tag),
+            labelKo: asStr(w.labelKo),
+            evidenceKo: asStr(w.evidenceKo),
+          }))
+          .slice(0, 3)
+      : [],
+    previousFocusReviewKo: asStr(raw?.previousFocusReviewKo),
   };
 }
 
@@ -67,6 +82,20 @@ export async function POST(req: Request) {
   const profileCtx = userProfile
     ? `Candidate targeting: ${userProfile.targetPosition}. Role: ${userProfile.currentRole}, ${userProfile.yearsExp}yr exp.`
     : "Senior AI/IT leader targeting Director-level foreign company role.";
+
+  // 직전 면접의 "다음에 고칠 것"을 가져와 이번 면접에서 개선됐는지 평가하게 한다
+  let lastNextFocusKo: string | null = null;
+  try {
+    ({ lastNextFocusKo } = await getRecentWeaknesses());
+  } catch (err) {
+    console.error("previous focus load failed", err);
+  }
+
+  const previousFocusPrompt = lastNextFocusKo
+    ? `\nThe coach's focus point from the candidate's PREVIOUS session was: "${lastNextFocusKo}"
+Add this field to the JSON:
+  "previousFocusReviewKo": "지난번 지적사항이 이번 면접에서 개선됐는지 평가 (한국어, 2문장 — 무엇이 나아졌고 무엇이 남았는지 구체적으로)"\n`
+    : "";
 
   const conversationText = turns
     .map((t) => `${t.role === "ai" ? "Interviewer" : "Candidate"}: ${t.text}`)
@@ -108,12 +137,16 @@ Analyze the full interview transcript and return JSON with this exact shape:
   "improvementSentencesKo": ["개선문장1 한국어 번역", "개선문장2 한국어 번역", "개선문장3 한국어 번역"],
   "qa": [
     { "q": "Interviewer question in English", "qKo": "질문 한국어 번역", "a": "Candidate answer in English", "aKo": "답변 한국어 번역" }
+  ],
+  "weaknesses": [
+    { "tag": "one of: ${WEAKNESS_TAGS.join(" | ")}", "labelKo": "약점을 한국어 한 줄로", "evidenceKo": "이번 대화에서의 근거 1문장 (한국어)" }
   ]
 }
-
+${previousFocusPrompt}
 improvementSentences: exactly 3 English sentences the candidate can immediately use in their next interview. Make them specific, executive-sounding, and directly based on the candidate's weak answers.
 improvementSentencesKo: natural Korean translations of the 3 improvement sentences above.
-qa: extract ALL main question-answer pairs from the transcript as structured objects. Skip pure greetings and session-closing remarks. Include Korean translations for both questions and answers.`,
+qa: extract ALL main question-answer pairs from the transcript as structured objects. Skip pure greetings and session-closing remarks. Include Korean translations for both questions and answers.
+weaknesses: the 2-3 most important recurring weak points in this interview. The "tag" MUST be exactly one of the listed enum values.`,
         },
         {
           role: "user",

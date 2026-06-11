@@ -97,7 +97,8 @@ export function getScenarioById(id: string): Scenario {
 export function buildSystemPrompt(
   scenarioId: ScenarioId,
   profileCtx: string,
-  patternCtx: string
+  patternCtx: string,
+  extras?: { weaknessCtx?: string; jdCtx?: string }
 ): string {
   switch (scenarioId) {
     case "executive_briefing":
@@ -142,13 +143,15 @@ Your role:
 - Do NOT coach or step out of character.`;
 
     case "interview":
-    default:
+    default: {
+      const focusCtx = extras?.jdCtx || patternCtx;
+      const weaknessBlock = extras?.weaknessCtx ? `\n${extras.weaknessCtx}\n` : "";
       return `You are a rigorous interviewer at a global tech company interviewing a senior Korean AI/IT leader for a foreign company.
 
 ${profileCtx}
 
-${patternCtx}
-
+${focusCtx}
+${weaknessBlock}
 Your interviewing style:
 - Professional and direct. Not overly warm. Real interview energy.
 - Ask ONE question at a time. Wait for the full answer before asking the next.
@@ -164,6 +167,7 @@ Interview structure:
 - End with a concise closing when the final question is complete.
 
 When asked to begin, start with a brief greeting and the first question. Do not announce the internal structure.`;
+    }
   }
 }
 

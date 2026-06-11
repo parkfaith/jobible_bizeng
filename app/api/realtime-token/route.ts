@@ -12,6 +12,7 @@ import {
   type ScenarioId,
 } from "@/lib/scenarios";
 import { WEEKLY_SESSION_LIMIT } from "@/lib/constants";
+import { buildWeaknessCtx, getRecentWeaknesses } from "@/lib/weakness";
 
 function getWeekMondayUtcIso(): string {
   const kstOffsetMs = 9 * 60 * 60 * 1000;
@@ -83,7 +84,18 @@ export async function POST(req: Request) {
 Use this topic as the main thread of the interview.`
     : "No daily pattern set is available. Use a general senior AI leadership interview flow.";
 
-  const instructions = buildSystemPrompt(scenarioId, profileCtx, patternCtx);
+  // 면접 시나리오에서만 과거 약점을 주입 — 면접관이 약점 영역을 자연스럽게 검증
+  let weaknessCtx = "";
+  if (scenarioId === "interview") {
+    try {
+      const { items } = await getRecentWeaknesses();
+      weaknessCtx = buildWeaknessCtx(items);
+    } catch (err) {
+      console.error("weakness context load failed", err);
+    }
+  }
+
+  const instructions = buildSystemPrompt(scenarioId, profileCtx, patternCtx, { weaknessCtx });
 
   // ── Request ephemeral token ───────────────────────────────────────────────
   const res = await fetch("https://api.openai.com/v1/realtime/client_secrets", {
