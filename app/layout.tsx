@@ -36,7 +36,8 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="ko" className={`${geist.variable} h-full`}>
-      <body className="min-h-screen bg-slate-950 text-slate-100 font-sans antialiased">
+      {/* min-height는 globals.css가 dvh로 관리 — min-h-screen(정적 100vh)을 두면 동적 뷰포트 보정이 무효화됨 */}
+      <body className="bg-slate-950 text-slate-100 font-sans antialiased">
         <RouteProgress />
         {children}
       </body>

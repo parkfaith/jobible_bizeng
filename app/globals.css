@@ -23,6 +23,16 @@ body {
   overscroll-behavior-y: none;
 }
 
+/* 모바일 브라우저에서 100%는 주소창이 보일 때의 작은 뷰포트에 고정된다.
+   주소창이 접히면 nav 아래에 그 차이만큼 빈 공간이 생기므로,
+   동적 뷰포트(dvh)를 지원하는 브라우저에서는 body가 실제 보이는 높이를 따라가게 한다. */
+@supports (height: 100dvh) {
+  body {
+    height: 100dvh;
+    min-height: 100dvh;
+  }
+}
+
 body::before {
   content: "";
   position: fixed;
