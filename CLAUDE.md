@@ -27,11 +27,16 @@ app/
   onboarding/page.tsx         # 4단계 프로필 입력 (클라이언트)
   login/page.tsx              # 비밀번호 로그인 + PWA 설치 안내 (클라이언트)
   practice/
-    page.tsx                  # 오늘의 질문 연습 (클라이언트)
-    interview/page.tsx        # 실전 면접 대화 WebRTC (클라이언트)
+    page.tsx                  # 오늘의 질문 연습 + 마스터 모드(?source=note&noteId=N) (클라이언트)
+    interview/
+      page.tsx                # 실전 면접 대화 WebRTC + JD 면접 진입 (클라이언트)
+      FeedbackView.tsx        # 면접 종합 피드백 화면 (클라이언트)
   notes/
     page.tsx                  # 답변 노트 (force-dynamic, 서버 컴포넌트)
-    NotesClient.tsx           # 필터·수정·삭제 (클라이언트)
+    NotesClient.tsx           # 필터·수정·삭제 + 마스터 모드 진입 (클라이언트)
+  jd/
+    page.tsx                  # 지원 공고 관리 (force-dynamic, 서버 컴포넌트)
+    JdClient.tsx              # 공고 붙여넣기·분석·삭제 (클라이언트)
   patterns/page.tsx           # 오늘의 답변 패턴세트 상세·수정·다시 생성 (클라이언트)
   review/page.tsx             # 날짜별 패턴 복습 캘린더 + 최근 패턴 목록 (서버 컴포넌트)
   stats/page.tsx              # 성장 통계 — 연습 횟수·점수 추이·면접 피드백 (서버 컴포넌트)
@@ -43,7 +48,9 @@ app/
     feedback/route.ts         # POST — 4항목 피드백
     feedback/interview/route.ts  # POST — 실전 면접 종합 피드백
     realtime-token/route.ts   # POST — ephemeral token 발급
-    notes/route.ts            # GET, POST, PATCH, DELETE
+    notes/route.ts            # GET(?id=N 단건), POST, PATCH, DELETE
+    notes/attempts/route.ts   # GET — 마스터 모드 시도 이력 (noteId 기준)
+    jd/route.ts               # POST — 공고 분석·저장, GET — active 목록, DELETE — 아카이브
     patterns/
       daily/route.ts          # GET — 패턴세트 조회/생성, POST — 다시 생성, PATCH — 수동 수정
       history/route.ts        # GET — 날짜별 저장 패턴 목록
@@ -56,8 +63,9 @@ components/
   SpeakButton.tsx             # 패턴 문장 TTS 재생 버튼 (클라이언트)
 lib/
   pattern-set.ts              # DailyPatternSet 타입, getKstDate(), DAILY_PATTERN_SET_SCHEMA
+  weakness.ts                 # 약점 태그 enum, getRecentWeaknesses(), buildWeaknessCtx()
   db/
-    schema.ts                 # 6개 테이블 정의
+    schema.ts                 # 7개 테이블 정의
     index.ts                  # Turso 클라이언트 + Drizzle
 ```
 
@@ -98,16 +106,17 @@ npm run db:studio    # Drizzle Studio (DB 브라우저)
 | `profile` | 사용자 목표·경력·프로젝트 (1행) |
 | `practice_sessions` | 연습 세션 (daily / interview) |
 | `practice_turns` | 질문-답변 턴 기록 |
-| `feedbacks` | 4항목 점수 + 피드백 텍스트 |
+| `feedbacks` | 4항목 점수 + 피드백 텍스트 — `noteId`로 마스터 모드 시도 이력 연결, `rawJson`에 약점 태그·JD 커버리지 누적 |
 | `answer_notes` | 최종 암기용 답변 + 핵심 표현 |
 | `daily_patterns` | 날짜별 패턴 캐시 — `patternType`으로 구분 (`daily_pattern_set` / `weekly_summary_set`) |
+| `job_postings` | JD 모드 — 공고 원문 + GPT-4o 요약(summaryJson), soft delete(status) |
 
 ## 배포 방식
 
 GitHub `master` 브랜치에 푸시하면 Vercel에서 자동으로 프로덕션 배포된다. 별도 배포 작업 불필요.
 
-## 현재 상태 (2026-05-27)
+## 현재 상태 (2026-06-11)
 
-비즈니스 영어 4개 시나리오 + 주 3회 가드레일 + 주말 요약 콘텐츠 + 한국어 해석 tap-to-reveal + 패턴 TTS 완료.
-레거시 expressions 기능 완전 삭제. TTS 경쟁 상태 제거 완료. iOS Safari TTS 설계 보정 완료 (실기기 검증 필요).
-다음 작업 후보: iPhone/Safari TTS 실기기 테스트, 프로필 수정 화면.
+축적 루프 3종 완료: 약점 추적 루프(과거 피드백 → 다음 면접 반영), 핵심 답변 마스터 모드(같은 질문 재도전 + 점수 델타), JD 모드(채용공고 기반 맞춤 면접 + 커버리지 피드백). 상세는 `agents.md` 14절, `docs/handoff.md` 28절.
+하단 nav 뜸 현상을 dvh(동적 뷰포트)로 보정 (실기기 검증 필요).
+다음 작업 후보: Codex 코드리뷰 반영, iPhone 실기기 테스트 (마스터 모드·JD 면접·nav 밀착).

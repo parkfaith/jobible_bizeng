@@ -512,3 +512,85 @@ windows sandbox: setup refresh failed with status exit code: 1
 - 같은 오류가 나오면 코드 문제가 아니라 sandbox 환경 문제로 먼저 본다.
 - `node_repl`로 파일 읽기/간단한 git 확인은 가능했지만 `npm` PATH가 없어 lint/build 실행에는 적합하지 않았다.
 - 리뷰나 구현 검증이 필요한 세션에서는 내부 드라이브로 옮긴 workspace에서 시작하는 것이 가장 안정적이다.
+
+## 28. 2026-06-11 축적 루프 3종 + 하단 nav dvh 보정 — Codex 리뷰 요청
+
+"연습은 하는데 늘고 있는지 안 보이고, 피드백이 휘발된다"는 문제를 해결하기 위해
+앱을 "쌓이는 구조"로 바꾸는 3개 기능을 구현했다. 별도로 하단 nav 뜸 현상을 보정했다.
+
+### 커밋 목록 (리뷰 범위)
+
+- `18ea2da` feat: 약점 추적 루프 (Phase 1)
+- `7660ed7` feat: 핵심 답변 마스터 모드 (Phase 2)
+- `2cf815c` feat: JD 모드 (Phase 3)
+- `393de97` fix: 하단 nav 뜸 현상 — dvh 보정
+
+리뷰 명령 예: `git diff d0adfc9..HEAD` (또는 커밋별 `git show`)
+
+### Phase 1: 약점 추적 루프 (스키마 변경 없음)
+
+- `lib/weakness.ts` 신규 — `getRecentWeaknesses()`: 최근 면접 피드백 3건의
+  `rawJson.weaknesses` 파싱 (레거시 행은 `nextFocus` 텍스트 폴백), 반복 태그 우선 최대 3개.
+  `buildWeaknessCtx()`: 면접관 프롬프트 주입 블록 (약점당 최대 1질문, 약점 노출 금지 명시).
+- `lib/scenarios.ts` — `buildSystemPrompt`에 4번째 파라미터
+  `extras?: { weaknessCtx?, jdCtx? }`. interview 케이스에서만 사용. jdCtx가 있으면 patternCtx 대체.
+- `app/api/realtime-token/route.ts` — interview 시나리오일 때 약점 컨텍스트 주입.
+- `app/api/feedback/interview/route.ts` — 응답 JSON에 `weaknesses[]`(고정 enum tag) +
+  `previousFocusReviewKo`(직전 nextFocus 개선 평가) 추가, normalizeFeedback 정규화 확장.
+- `app/practice/interview/FeedbackView.tsx` 신규 — 기존 feedback 스테이지를 page.tsx에서
+  로직 변경 없이 분리 + "지난번 지적사항 점검" 카드 추가. page.tsx는 908줄 → 약 730줄.
+
+### Phase 2: 핵심 답변 마스터 모드 (feedbacks.noteId 컬럼 추가, db:push 완료)
+
+- `lib/db/schema.ts` — `feedbacks.noteId` (nullable FK → answer_notes).
+- `app/api/notes/attempts/route.ts` 신규 — `GET ?noteId=N`: feedbacks⟕practiceTurns join 시도 이력.
+- `app/api/notes/route.ts` — GET에 `?id=N` 단건 조회 추가.
+- `app/api/feedback/route.ts` — body `noteId?`, `previousAnswer?` 추가.
+  previousAnswer 있으면 응답에 `progressKo`(직전 대비 진전 2문장) 요구.
+- `app/practice/page.tsx` — `?source=note&noteId=N` 분기 (기존 weekly/pattern 패턴 확장):
+  최종 답변 접힘 토글(암기 회상), ScoreBar 델타(+1/-1/=), 직전 답변 vs 이번 답변 비교 카드,
+  노트 저장 버튼을 "최종 답변으로 업데이트"(PATCH)로 교체 — 중복 노트 방지.
+- `app/notes/NotesClient.tsx` — 확장 카드에 "이 질문 다시 도전" 버튼.
+
+### Phase 3: JD 모드 (job_postings 테이블 추가, db:push 완료)
+
+- `lib/db/schema.ts` — `job_postings` (company, position, rawText, summaryJson, status).
+- `app/api/jd/route.ts` 신규 — POST: 15000자 가드 → GPT-4o 요약 추출
+  (mustHave/niceToHave/responsibilities/interviewAnglesEn/summaryKo) → 저장.
+  GET: active 목록. DELETE: archived 처리 (soft delete).
+- `app/jd/page.tsx` + `JdClient.tsx` 신규 — notes 페이지 패턴 (서버 조회 → 클라이언트).
+- `app/api/realtime-token/route.ts` — body `jdId?`. JD 면접 = interview 시나리오 +
+  jdCtx가 patternCtx 대체. 약점 주입(Phase 1)과 결합 동작.
+- `app/api/feedback/interview/route.ts` — body `jdId?` → 응답에 `jdCoverage`
+  (coveredKo/missedKo/adviceKo, 각 최대 3개). rawJson에 jdId 포함 저장.
+- `app/practice/interview/page.tsx` — 시나리오 선택 화면에 "지원 중인 공고로 면접" 섹션
+  (공고 있을 때만), briefing에서 패턴 카드 대신 JD 카드, `selectedJdIdRef` 패턴.
+
+### nav 보정 (393de97)
+
+- 원인: 모바일 브라우저에서 `height:100%`는 주소창이 보일 때의 작은 뷰포트에 고정 →
+  주소창이 접히면 nav 아래 빈 공간 발생.
+- `app/globals.css` — `@supports (height:100dvh)` body 오버라이드 추가.
+- `app/layout.tsx` — body의 `min-h-screen`(정적 100vh) 제거 (dvh 보정과 충돌).
+- 실기기 검증 필요. 배포 후 서비스워커 캐시로 이전 CSS가 남으면 새로고침/재설치 후 확인.
+
+### Codex 리뷰 중점 확인 요청
+
+1. **WebRTC/stage 머신 비침범**: page.tsx 변경이 연결/타이머/cleanup 로직을 건드리지 않았는지
+   (FeedbackView 분리가 순수 이동인지, JD 진입이 기존 selectScenarioAndBrief 흐름과 충돌 없는지).
+2. **normalizeFeedback 방어성**: 신규 필드(weaknesses/previousFocusReviewKo/jdCoverage)가
+   LLM 누락/타입 오류 시 기존 UI를 깨지 않는지.
+3. **마스터 모드 직전 답변 기준**: attempts[0]?.transcript ?? note.originalAnswer 폴백이 맞는지,
+   재시도("다시 말하기") 후 같은 세션 내 attempts가 갱신되지 않는 점이 수용 가능한 수준인지.
+4. **JD soft delete**: archived 공고를 참조하는 jdId로 면접 시작 시 동작 (조회는 id 기준이라
+   archived여도 컨텍스트 주입됨 — 의도된 동작인지 검토).
+5. **dvh 보정 부작용**: 키보드 노출 시(/jd 텍스트영역, 노트 수정) 레이아웃,
+   non-nav 화면(main에 min-h-screen 사용)의 회귀 여부.
+6. **레이스**: 면접 페이지 마운트 시 /api/jd fetch가 늦게 오면 briefing의 JD 카드가
+   비어 보일 수 있는 경로 (selectJdAndBrief는 jdList 기반이라 실제로는 불가능한지 확인).
+
+### 검증 상태
+
+- `npm run build` 통과 (Phase별 + 최종).
+- `npm run db:push` 2회 적용 완료 (noteId 컬럼, job_postings 테이블) — 모두 additive.
+- 실기기(iPhone) 미검증: 약점 주입 면접 품질, 마스터 모드 흐름, JD 면접, nav 밀착.
