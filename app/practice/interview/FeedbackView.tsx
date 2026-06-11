@@ -12,6 +12,7 @@ export interface InterviewFeedback {
   qa?: { q: string; qKo: string; a: string; aKo: string }[];
   weaknesses?: { tag: string; labelKo: string; evidenceKo?: string }[];
   previousFocusReviewKo?: string;
+  jdCoverage?: { coveredKo: string[]; missedKo: string[]; adviceKo: string };
 }
 
 export default function FeedbackView({
@@ -103,6 +104,41 @@ export default function FeedbackView({
           <div className="bg-slate-800 border border-indigo-800 rounded-2xl p-5">
             <p className="text-indigo-300 text-sm font-semibold mb-2">📌 지난번 지적사항 점검</p>
             <p className="text-white text-sm leading-relaxed">{feedback.previousFocusReviewKo}</p>
+          </div>
+        )}
+
+        {/* JD Coverage — 공고 요구사항 대비 답변 커버리지 */}
+        {feedback.jdCoverage &&
+          (feedback.jdCoverage.coveredKo.length > 0 ||
+            feedback.jdCoverage.missedKo.length > 0 ||
+            feedback.jdCoverage.adviceKo) && (
+          <div className="bg-sky-950/60 border border-sky-800 rounded-2xl p-5">
+            <p className="text-sky-300 text-sm font-semibold mb-3">📋 공고 요구사항 커버리지</p>
+            {feedback.jdCoverage.coveredKo.length > 0 && (
+              <div className="mb-3">
+                <p className="text-green-400 text-xs font-medium mb-1.5">입증한 요구사항</p>
+                <div className="flex flex-col gap-1.5">
+                  {feedback.jdCoverage.coveredKo.map((item, i) => (
+                    <p key={i} className="text-slate-200 text-sm leading-relaxed">✓ {item}</p>
+                  ))}
+                </div>
+              </div>
+            )}
+            {feedback.jdCoverage.missedKo.length > 0 && (
+              <div className="mb-3">
+                <p className="text-orange-400 text-xs font-medium mb-1.5">놓친 요구사항</p>
+                <div className="flex flex-col gap-1.5">
+                  {feedback.jdCoverage.missedKo.map((item, i) => (
+                    <p key={i} className="text-slate-200 text-sm leading-relaxed">△ {item}</p>
+                  ))}
+                </div>
+              </div>
+            )}
+            {feedback.jdCoverage.adviceKo && (
+              <p className="text-sky-200 text-xs leading-relaxed border-t border-sky-800 pt-3">
+                {feedback.jdCoverage.adviceKo}
+              </p>
+            )}
           </div>
         )}
 

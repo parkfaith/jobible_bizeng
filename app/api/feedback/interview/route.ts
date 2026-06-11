@@ -2,7 +2,8 @@ export const maxDuration = 60;
 
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { feedbacks, profile } from "@/lib/db/schema";
+import { feedbacks, jobPostings, profile } from "@/lib/db/schema";
+import { eq } from "drizzle-orm";
 import { WEAKNESS_TAGS, getRecentWeaknesses } from "@/lib/weakness";
 
 interface Turn {
@@ -46,6 +47,14 @@ function normalizeFeedback(raw: Record<string, unknown>) {
     qa: Array.isArray(raw?.qa)
       ? (raw.qa as unknown[]).filter((item) => item && typeof item === "object")
       : [],
+    jdCoverage:
+      raw?.jdCoverage && typeof raw.jdCoverage === "object" && !Array.isArray(raw.jdCoverage)
+        ? {
+            coveredKo: asStrArray((raw.jdCoverage as Record<string, unknown>).coveredKo).slice(0, 3),
+            missedKo: asStrArray((raw.jdCoverage as Record<string, unknown>).missedKo).slice(0, 3),
+            adviceKo: asStr((raw.jdCoverage as Record<string, unknown>).adviceKo),
+          }
+        : undefined,
     weaknesses: Array.isArray(raw?.weaknesses)
       ? (raw.weaknesses as unknown[])
           .map((w) => asObj(w))
@@ -62,7 +71,8 @@ function normalizeFeedback(raw: Record<string, unknown>) {
 }
 
 export async function POST(req: Request) {
-  const { turns, sessionId }: { turns: Turn[]; sessionId?: number } = await req.json();
+  const { turns, sessionId, jdId }: { turns: Turn[]; sessionId?: number; jdId?: number } =
+    await req.json();
 
   if (!turns || turns.length < 2) {
     return NextResponse.json({ error: "Not enough conversation data" }, { status: 400 });
@@ -96,6 +106,30 @@ export async function POST(req: Request) {
 Add this field to the JSON:
   "previousFocusReviewKo": "지난번 지적사항이 이번 면접에서 개선됐는지 평가 (한국어, 2문장 — 무엇이 나아졌고 무엇이 남았는지 구체적으로)"\n`
     : "";
+
+  // JD 면접: 공고 요구사항 대비 답변 커버리지 평가 요청
+  let jdPrompt = "";
+  if (typeof jdId === "number" && jdId) {
+    try {
+      const jdRows = await db.select().from(jobPostings).where(eq(jobPostings.id, jdId)).limit(1);
+      if (jdRows[0]) {
+        const summary = JSON.parse(jdRows[0].summaryJson) as {
+          mustHave?: string[];
+          interviewAnglesEn?: string[];
+        };
+        jdPrompt = `\nThis interview was for the ${jdRows[0].position} role at ${jdRows[0].company}.
+Key requirements: ${(summary.mustHave ?? []).join("; ")}
+Add this field to the JSON:
+  "jdCoverage": {
+    "coveredKo": ["답변에서 입증된 요구사항 + 어떻게 입증됐는지 (한국어, 최대 3개)"],
+    "missedKo": ["전혀 또는 약하게 다뤄진 요구사항 (한국어, 최대 3개)"],
+    "adviceKo": "이 공고 기준으로 다음 면접에서 보강할 한 가지 (한국어, 1-2문장)"
+  }\n`;
+      }
+    } catch (err) {
+      console.error("JD coverage context load failed", err);
+    }
+  }
 
   const conversationText = turns
     .map((t) => `${t.role === "ai" ? "Interviewer" : "Candidate"}: ${t.text}`)
@@ -142,7 +176,7 @@ Analyze the full interview transcript and return JSON with this exact shape:
     { "tag": "one of: ${WEAKNESS_TAGS.join(" | ")}", "labelKo": "약점을 한국어 한 줄로", "evidenceKo": "이번 대화에서의 근거 1문장 (한국어)" }
   ]
 }
-${previousFocusPrompt}
+${previousFocusPrompt}${jdPrompt}
 improvementSentences: exactly 3 English sentences the candidate can immediately use in their next interview. Make them specific, executive-sounding, and directly based on the candidate's weak answers.
 improvementSentencesKo: natural Korean translations of the 3 improvement sentences above.
 qa: extract ALL main question-answer pairs from the transcript as structured objects. Skip pure greetings and session-closing remarks. Include Korean translations for both questions and answers.
@@ -184,7 +218,7 @@ weaknesses: the 2-3 most important recurring weak points in this interview. The 
         worstAnswer: JSON.stringify(feedback.worstAnswer),
         nextFocus: feedback.nextFocusKo,
         keyExpressions: JSON.stringify(feedback.improvementSentences),
-        rawJson: JSON.stringify(feedback),
+        rawJson: JSON.stringify({ ...feedback, jdId: jdId ?? undefined }),
       });
     } catch (err) {
       console.error("interview feedback DB save failed", err);

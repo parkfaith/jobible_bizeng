@@ -27,6 +27,13 @@ interface Turn {
   text: string;
 }
 
+interface JdListItem {
+  id: number;
+  company: string;
+  position: string;
+  summaryKo: string;
+}
+
 const MAX_INTERVIEW_SECONDS = 10 * 60;
 const MAX_INTERVIEW_QUESTIONS = 6;
 
@@ -52,6 +59,8 @@ export default function InterviewPage() {
   const [errorMsg, setErrorMsg] = useState("");
   const [elapsedSec, setElapsedSec] = useState(0);
   const [dcReady, setDcReady] = useState(false);
+  const [jdList, setJdList] = useState<JdListItem[]>([]);
+  const [selectedJdId, setSelectedJdId] = useState<number | null>(null);
 
   const pcRef = useRef<RTCPeerConnection | null>(null);
   const dcRef = useRef<RTCDataChannel | null>(null);
@@ -63,6 +72,7 @@ export default function InterviewPage() {
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const transcriptEndRef = useRef<HTMLDivElement | null>(null);
   const selectedScenarioRef = useRef<ScenarioId>("interview");
+  const selectedJdIdRef = useRef<number | null>(null);
 
   // Fetch today's pattern and weekly count on mount
   useEffect(() => {
@@ -75,10 +85,16 @@ export default function InterviewPage() {
       .then((res) => res.json())
       .then((body) => { if (typeof body.count === "number") setWeeklyCount(body.count); })
       .catch(() => {});
+
+    fetch("/api/jd")
+      .then((res) => res.json())
+      .then((body) => { if (Array.isArray(body)) setJdList(body); })
+      .catch(() => {});
   }, []);
 
   useEffect(() => { turnsRef.current = turns; }, [turns]);
   useEffect(() => { selectedScenarioRef.current = selectedScenarioId; }, [selectedScenarioId]);
+  useEffect(() => { selectedJdIdRef.current = selectedJdId; }, [selectedJdId]);
 
   const addTurn = useCallback((role: "ai" | "user", text: string) => {
     setTurns((prev) => [...prev, { role, text }]);
@@ -90,6 +106,17 @@ export default function InterviewPage() {
   function selectScenarioAndBrief(id: ScenarioId) {
     setSelectedScenarioId(id);
     selectedScenarioRef.current = id;
+    setSelectedJdId(null);
+    selectedJdIdRef.current = null;
+    setStage("briefing");
+  }
+
+  // JD 면접 = interview 시나리오 + 공고 컨텍스트
+  function selectJdAndBrief(jdId: number) {
+    setSelectedScenarioId("interview");
+    selectedScenarioRef.current = "interview";
+    setSelectedJdId(jdId);
+    selectedJdIdRef.current = jdId;
     setStage("briefing");
   }
 
@@ -141,7 +168,7 @@ export default function InterviewPage() {
       const res = await fetch("/api/feedback/interview", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ turns: allTurns, sessionId }),
+        body: JSON.stringify({ turns: allTurns, sessionId, jdId: selectedJdIdRef.current ?? undefined }),
       });
       if (!res.ok) throw new Error("면접 피드백 생성에 실패했습니다.");
       const fb = await res.json();
@@ -182,7 +209,10 @@ export default function InterviewPage() {
         const tokenRes = await fetch("/api/realtime-token", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ scenario: selectedScenarioRef.current }),
+          body: JSON.stringify({
+            scenario: selectedScenarioRef.current,
+            jdId: selectedJdIdRef.current ?? undefined,
+          }),
         });
 
         if (tokenRes.status === 429) {
@@ -414,6 +444,38 @@ export default function InterviewPage() {
           ))}
         </div>
 
+        {/* JD 맞춤 면접 — 등록된 공고가 있을 때만 노출 */}
+        {jdList.length > 0 ? (
+          <div className="mb-6">
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-sky-300 text-sm font-semibold">📋 지원 중인 공고로 면접</p>
+              <Link href="/jd" className="tap-target flex items-center text-slate-500 text-xs">
+                공고 관리
+              </Link>
+            </div>
+            <div className="flex flex-col gap-2">
+              {jdList.map((jd) => (
+                <button
+                  key={jd.id}
+                  onClick={() => selectJdAndBrief(jd.id)}
+                  disabled={isLimitReached}
+                  className="flex items-center gap-3 rounded-2xl p-4 border text-left transition-all active:scale-[0.98] disabled:opacity-40 bg-sky-500/10 border-sky-500/30"
+                >
+                  <span className="text-2xl shrink-0">📋</span>
+                  <div className="min-w-0">
+                    <p className="text-sky-300 text-sm font-bold truncate">{jd.position}</p>
+                    <p className="text-slate-300 text-xs mt-0.5 truncate">{jd.company}</p>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <Link href="/jd" className="tap-target flex items-center justify-center mb-6 text-slate-500 text-xs">
+            📋 채용공고 붙여넣고 맞춤 면접 →
+          </Link>
+        )}
+
         <div className="bg-slate-800 border border-slate-700 rounded-2xl p-4">
           <p className="text-slate-400 text-xs font-medium mb-2">공통 진행 방식</p>
           <div className="grid grid-cols-2 gap-2">
@@ -453,12 +515,28 @@ export default function InterviewPage() {
           <p className="text-white text-sm leading-relaxed">{scenario.briefingBodyKo}</p>
         </section>
 
-        {selectedScenarioId === "interview" && patternSet && (
-          <section className="bg-slate-800 border border-slate-700 rounded-2xl p-5 mb-4">
-            <p className="text-slate-400 text-xs mb-2">오늘의 패턴 주제</p>
-            <p className="text-white text-sm font-semibold mb-2">{patternSet.topic}</p>
-            <p className="text-slate-300 text-sm leading-relaxed">{patternSet.exercise.question}</p>
-          </section>
+        {selectedJdId !== null ? (
+          (() => {
+            const jd = jdList.find((j) => j.id === selectedJdId);
+            return jd ? (
+              <section className="bg-sky-500/10 border border-sky-500/30 rounded-2xl p-5 mb-4">
+                <p className="text-sky-300 text-xs mb-2">지원 공고 맞춤 면접</p>
+                <p className="text-white text-sm font-semibold">{jd.position}</p>
+                <p className="text-sky-300 text-xs mt-0.5 mb-2">{jd.company}</p>
+                {jd.summaryKo && (
+                  <p className="text-slate-300 text-sm leading-relaxed">{jd.summaryKo}</p>
+                )}
+              </section>
+            ) : null;
+          })()
+        ) : (
+          selectedScenarioId === "interview" && patternSet && (
+            <section className="bg-slate-800 border border-slate-700 rounded-2xl p-5 mb-4">
+              <p className="text-slate-400 text-xs mb-2">오늘의 패턴 주제</p>
+              <p className="text-white text-sm font-semibold mb-2">{patternSet.topic}</p>
+              <p className="text-slate-300 text-sm leading-relaxed">{patternSet.exercise.question}</p>
+            </section>
+          )
         )}
 
         <section className="bg-slate-800 border border-slate-700 rounded-2xl p-5 mb-5">

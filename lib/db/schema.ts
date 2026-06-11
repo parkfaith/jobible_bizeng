@@ -73,6 +73,16 @@ export const answerNotes = sqliteTable("answer_notes", {
   updatedAt: text("updated_at").default(sql`(datetime('now'))`),
 });
 
+export const jobPostings = sqliteTable("job_postings", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  company: text("company").notNull(),
+  position: text("position").notNull(),
+  rawText: text("raw_text").notNull(),
+  summaryJson: text("summary_json").notNull(), // { mustHave[], niceToHave[], responsibilities[], interviewAnglesEn[], summaryKo }
+  status: text("status", { enum: ["active", "archived"] }).notNull().default("active"),
+  createdAt: text("created_at").default(sql`(datetime('now'))`),
+});
+
 export const dailyPatterns = sqliteTable(
   "daily_patterns",
   {

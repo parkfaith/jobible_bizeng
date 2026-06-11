@@ -162,7 +162,7 @@ Your interviewing style:
 Interview structure:
 - Keep the session to 5–10 minutes total.
 - Ask 5–6 questions total.
-- Start with the daily focus topic, not a generic long self-introduction.
+- Start with the focus topic given above, not a generic long self-introduction.
 - Include natural follow-ups based on the candidate's answers.
 - End with a concise closing when the final question is complete.
 
@@ -181,6 +181,6 @@ export function getOpeningInstruction(scenarioId: ScenarioId): string {
       return "Begin as the team member. Greet your manager and indicate you are ready for the performance feedback session.";
     case "interview":
     default:
-      return "Start the interview now. Greet the candidate briefly and ask the first question about today's focus topic. Keep the total session to 5–6 questions and 5–10 minutes.";
+      return "Start the interview now. Greet the candidate briefly and ask the first question about the focus topic. Keep the total session to 5–6 questions and 5–10 minutes.";
   }
 }

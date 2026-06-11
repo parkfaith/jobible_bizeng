@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { dailyPatterns, practiceSessions, profile } from "@/lib/db/schema";
+import { dailyPatterns, jobPostings, practiceSessions, profile } from "@/lib/db/schema";
 import { and, eq, gte, ne } from "drizzle-orm";
 import {
   DAILY_PATTERN_SET_TYPE,
@@ -28,8 +28,9 @@ function getWeekMondayUtcIso(): string {
 }
 
 export async function POST(req: Request) {
-  const body = await req.json().catch(() => ({})) as { scenario?: string };
+  const body = await req.json().catch(() => ({})) as { scenario?: string; jdId?: number };
   const scenarioId: ScenarioId = (body.scenario as ScenarioId) ?? "interview";
+  const jdId = typeof body.jdId === "number" ? body.jdId : null;
 
   // ── Weekly session limit guard ────────────────────────────────────────────
   const mondayIso = getWeekMondayUtcIso();
@@ -95,7 +96,28 @@ Use this topic as the main thread of the interview.`
     }
   }
 
-  const instructions = buildSystemPrompt(scenarioId, profileCtx, patternCtx, { weaknessCtx });
+  // JD 면접: 오늘의 패턴 대신 실제 공고 요구사항을 면접 축으로 사용
+  let jdCtx = "";
+  if (scenarioId === "interview" && jdId) {
+    const jdRows = await db.select().from(jobPostings).where(eq(jobPostings.id, jdId)).limit(1);
+    if (jdRows[0]) {
+      try {
+        const summary = JSON.parse(jdRows[0].summaryJson) as {
+          mustHave?: string[];
+          interviewAnglesEn?: string[];
+        };
+        jdCtx = `This interview is specifically for the ${jdRows[0].position} role at ${jdRows[0].company}.
+Key requirements: ${(summary.mustHave ?? []).join("; ")}
+Verification angles to probe: ${(summary.interviewAnglesEn ?? []).join("; ")}
+
+Base most of your questions on these requirements and probe for concrete evidence from the candidate's experience. Mention the company and role naturally in your greeting.`;
+      } catch {
+        console.error("JD summary parse failed", jdId);
+      }
+    }
+  }
+
+  const instructions = buildSystemPrompt(scenarioId, profileCtx, patternCtx, { weaknessCtx, jdCtx });
 
   // ── Request ephemeral token ───────────────────────────────────────────────
   const res = await fetch("https://api.openai.com/v1/realtime/client_secrets", {
