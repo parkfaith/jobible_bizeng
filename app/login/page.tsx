@@ -60,7 +60,7 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="min-h-screen bg-slate-950 flex flex-col items-center justify-center px-6 py-8">
+    <main className="min-h-full bg-slate-950 flex flex-col items-center justify-center px-6 py-8">
       <div className="w-full max-w-sm">
         <div className="flex flex-col items-center mb-8">
           <Image

@@ -100,14 +100,14 @@ export default function ProfilePage() {
 
   if (loading) {
     return (
-      <main className="min-h-screen bg-slate-950 flex items-center justify-center">
+      <main className="min-h-full bg-slate-950 flex items-center justify-center">
         <div className="w-6 h-6 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
       </main>
     );
   }
 
   return (
-    <main className="min-h-screen bg-slate-950 flex flex-col max-w-md mx-auto px-4 pt-6">
+    <main className="min-h-full bg-slate-950 flex flex-col max-w-md mx-auto px-4 pt-6">
       {/* Header */}
       <div className="flex items-center gap-3 mb-7">
         <Link

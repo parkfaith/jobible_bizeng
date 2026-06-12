@@ -87,7 +87,7 @@ export default function OnboardingPage() {
   }
 
   return (
-    <main className="min-h-screen bg-slate-950 flex flex-col max-w-md mx-auto px-4 pt-10 pb-10">
+    <main className="min-h-full bg-slate-950 flex flex-col max-w-md mx-auto px-4 pt-10 pb-10">
       {/* Progress bar */}
       <div className="flex gap-1 mb-8">
         {Array.from({ length: totalSteps }).map((_, i) => (

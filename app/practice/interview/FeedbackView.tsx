@@ -31,7 +31,7 @@ export default function FeedbackView({
   const [showFullConversation, setShowFullConversation] = useState(false);
 
   return (
-    <main className="min-h-screen bg-slate-950 flex flex-col max-w-md mx-auto px-4 pt-6 pb-10">
+    <main className="min-h-full bg-slate-950 flex flex-col max-w-md mx-auto px-4 pt-6 pb-10">
       <div className="flex items-center gap-3 mb-6">
         <Link href="/" className="tap-target flex items-center justify-center text-slate-400 text-2xl leading-none">←</Link>
         <div className="w-11 h-11 rounded-2xl bg-green-500/15 border border-green-500/30 flex items-center justify-center text-2xl shrink-0">

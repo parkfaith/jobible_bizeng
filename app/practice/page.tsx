@@ -388,7 +388,7 @@ function PracticeContent() {
   const previousAnswerLabel = prevAttempt?.transcript ? "직전 답변" : "기존 최종 답변";
 
   return (
-    <main className="min-h-screen bg-slate-950 flex flex-col max-w-md mx-auto px-4 pt-6 pb-10">
+    <main className="min-h-full bg-slate-950 flex flex-col max-w-md mx-auto px-4 pt-6 pb-10">
       {/* Header */}
       <div className="flex items-center gap-3 mb-5">
         <Link href="/" className="tap-target flex items-center justify-center text-slate-400 text-2xl leading-none">

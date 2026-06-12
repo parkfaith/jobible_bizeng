@@ -147,7 +147,7 @@ export default async function HomePage() {
       {/* Recent Notes */}
       <div className="flex items-center justify-between mb-3">
         <h2 className="text-slate-300 text-sm font-semibold">최근 저장한 답변</h2>
-        <Link href="/notes" className="text-indigo-400 text-xs">
+        <Link href="/notes" className="tap-target flex items-center px-2 -mr-2 text-indigo-400 text-xs">
           전체 보기
         </Link>
       </div>

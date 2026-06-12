@@ -428,7 +428,7 @@ function InterviewContent() {
   // ── SCENARIO SELECT ───────────────────────────────────────────────────────
   if (stage === "scenario_select") {
     return (
-      <main className="min-h-screen bg-slate-950 flex flex-col max-w-md mx-auto px-4 pt-7 bottom-safe">
+      <main className="min-h-full bg-slate-950 flex flex-col max-w-md mx-auto px-4 pt-7 pb-10">
         <div className="flex items-center gap-3 mb-6">
           <Link href="/" className="tap-target flex items-center justify-center text-slate-400 text-2xl leading-none">←</Link>
           <div className="w-11 h-11 rounded-2xl bg-violet-500/15 border border-violet-500/30 flex items-center justify-center text-2xl shrink-0">
@@ -478,8 +478,11 @@ function InterviewContent() {
           <div className="mb-6">
             <div className="flex items-center justify-between mb-3">
               <p className="text-sky-300 text-sm font-semibold">📋 지원 중인 공고로 면접</p>
-              <Link href="/jd" className="tap-target flex items-center text-slate-500 text-xs">
-                공고 관리
+              <Link
+                href="/jd"
+                className="tap-target flex items-center px-3 rounded-lg bg-slate-800 border border-slate-700 text-slate-300 text-xs"
+              >
+                공고 관리 ›
               </Link>
             </div>
             <div className="flex flex-col gap-2">
@@ -500,7 +503,10 @@ function InterviewContent() {
             </div>
           </div>
         ) : (
-          <Link href="/jd" className="tap-target flex items-center justify-center mb-6 text-slate-500 text-xs">
+          <Link
+            href="/jd"
+            className="tap-target flex items-center justify-center gap-2 mb-6 rounded-2xl border border-dashed border-sky-500/40 bg-sky-500/5 px-4 py-4 text-sky-300 text-sm font-semibold"
+          >
             📋 채용공고 붙여넣고 맞춤 면접 →
           </Link>
         )}
@@ -522,7 +528,7 @@ function InterviewContent() {
   if (stage === "briefing") {
     const scenario = getScenarioById(selectedScenarioId);
     return (
-      <main className="min-h-screen bg-slate-950 flex flex-col max-w-md mx-auto px-4 pt-7 bottom-safe">
+      <main className="min-h-full bg-slate-950 flex flex-col max-w-md mx-auto px-4 pt-7 pb-10">
         <div className="flex items-center gap-3 mb-6">
           <button
             onClick={() => setStage("scenario_select")}
@@ -602,7 +608,7 @@ function InterviewContent() {
   // ── CONNECTING ────────────────────────────────────────────────────────────
   if (stage === "connecting") {
     return (
-      <main className="min-h-screen bg-slate-950 flex flex-col items-center justify-center gap-5 px-4">
+      <main className="min-h-full bg-slate-950 flex flex-col items-center justify-center gap-5 px-4">
         {/* iOS Safari: DOM에 실제 audio 엘리먼트 필요 — new Audio()는 자동재생 차단됨 */}
         <audio ref={audioRef} autoPlay playsInline className="hidden" />
         <div className="w-14 h-14 rounded-full border-4 border-indigo-500 border-t-transparent animate-spin" />
@@ -622,7 +628,7 @@ function InterviewContent() {
       : "bg-emerald-700";
 
     return (
-      <main className="min-h-screen bg-slate-950 flex flex-col max-w-md mx-auto px-4 pt-7 pb-10">
+      <main className="min-h-full bg-slate-950 flex flex-col max-w-md mx-auto px-4 pt-7 pb-10">
         <audio ref={audioRef} autoPlay playsInline className="hidden" />
 
         <div className="flex items-center gap-3 mb-8">
@@ -671,7 +677,7 @@ function InterviewContent() {
   // ── ERROR ─────────────────────────────────────────────────────────────────
   if (stage === "error") {
     return (
-      <main className="min-h-screen bg-slate-950 flex flex-col items-center justify-center gap-5 px-4 text-center">
+      <main className="min-h-full bg-slate-950 flex flex-col items-center justify-center gap-5 px-4 text-center">
         <span className="text-5xl">⚠️</span>
         <p className="text-white font-semibold text-lg">오류</p>
         <p className="text-slate-400 text-sm">{errorMsg}</p>
@@ -688,7 +694,7 @@ function InterviewContent() {
   // ── ENDING ────────────────────────────────────────────────────────────────
   if (stage === "ending") {
     return (
-      <main className="min-h-screen bg-slate-950 flex flex-col items-center justify-center gap-5 px-4">
+      <main className="min-h-full bg-slate-950 flex flex-col items-center justify-center gap-5 px-4">
         <div className="w-14 h-14 rounded-full border-4 border-indigo-500 border-t-transparent animate-spin" />
         <p className="text-white font-semibold text-lg">피드백 분석 중...</p>
         <p className="text-slate-400 text-sm">대화 전체를 검토하고 있습니다</p>
@@ -706,7 +712,7 @@ function InterviewContent() {
   const scenario = getScenarioById(selectedScenarioId);
 
   return (
-    <main className="min-h-screen bg-slate-950 flex flex-col max-w-md mx-auto">
+    <main className="min-h-full bg-slate-950 flex flex-col max-w-md mx-auto">
       {/* iOS Safari: connecting→interviewing 전환 시 리마운트되므로 srcObject는 useEffect로 재연결 */}
       <audio ref={audioRef} autoPlay playsInline className="hidden" />
       <div className="flex items-center gap-3 px-4 pt-5 pb-3 border-b border-slate-800">

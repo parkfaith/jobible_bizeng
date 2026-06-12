@@ -57,7 +57,7 @@ function WeeklyView() {
 
   if (loading) {
     return (
-      <main className="min-h-screen bg-slate-950 flex items-center justify-center">
+      <main className="min-h-full bg-slate-950 flex items-center justify-center">
         <div className="w-10 h-10 rounded-full border-4 border-emerald-400 border-t-transparent animate-spin" />
       </main>
     );
@@ -65,7 +65,7 @@ function WeeklyView() {
 
   if (!data) {
     return (
-      <main className="min-h-screen bg-slate-950 flex flex-col items-center justify-center gap-4 px-4 text-center">
+      <main className="min-h-full bg-slate-950 flex flex-col items-center justify-center gap-4 px-4 text-center">
         <p className="text-white font-semibold">이번 주 요약을 불러오지 못했습니다</p>
         <p className="text-slate-500 text-sm">{error}</p>
         <button
@@ -79,7 +79,7 @@ function WeeklyView() {
   }
 
   return (
-    <main className="min-h-screen bg-slate-950 flex flex-col max-w-md mx-auto px-4 pt-6 bottom-safe">
+    <main className="min-h-full bg-slate-950 flex flex-col max-w-md mx-auto px-4 pt-6 pb-10">
       <div className="flex items-center gap-3 mb-5">
         <Link href="/" className="tap-target flex items-center justify-center text-slate-400 text-2xl leading-none">
           ←
@@ -293,7 +293,7 @@ function DailyView() {
 
   if (loading) {
     return (
-      <main className="min-h-screen bg-slate-950 flex items-center justify-center">
+      <main className="min-h-full bg-slate-950 flex items-center justify-center">
         <div className="w-10 h-10 rounded-full border-4 border-amber-400 border-t-transparent animate-spin" />
       </main>
     );
@@ -301,7 +301,7 @@ function DailyView() {
 
   if (!d) {
     return (
-      <main className="min-h-screen bg-slate-950 flex flex-col items-center justify-center gap-4 px-4 text-center">
+      <main className="min-h-full bg-slate-950 flex flex-col items-center justify-center gap-4 px-4 text-center">
         <p className="text-white font-semibold">오늘의 답변 패턴을 불러오지 못했습니다</p>
         <p className="text-slate-500 text-sm">{error}</p>
         <button
@@ -315,7 +315,7 @@ function DailyView() {
   }
 
   return (
-    <main className="min-h-screen bg-slate-950 flex flex-col max-w-md mx-auto px-4 pt-6 bottom-safe">
+    <main className="min-h-full bg-slate-950 flex flex-col max-w-md mx-auto px-4 pt-6 pb-10">
       <div className="flex items-center gap-3 mb-5">
         <Link href="/" className="tap-target flex items-center justify-center text-slate-400 text-2xl leading-none">
           ←

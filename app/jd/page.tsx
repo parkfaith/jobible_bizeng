@@ -30,7 +30,7 @@ export default async function JdPage() {
   });
 
   return (
-    <main className="min-h-screen bg-slate-950 flex flex-col max-w-md mx-auto px-4 pt-6 pb-10">
+    <main className="min-h-full bg-slate-950 flex flex-col max-w-md mx-auto px-4 pt-6 pb-10">
       <div className="flex items-center gap-3 mb-5">
         <Link
           href="/practice/interview"
