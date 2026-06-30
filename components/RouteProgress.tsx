@@ -7,6 +7,11 @@ const MIN_VISIBLE_MS = 250;
 const FALLBACK_HIDE_MS = 8000;
 const SHOW_DELAY_MS = 80;
 
+// 하단 nav 터치 이슈 격리용 플래그 — NEXT_PUBLIC_DISABLE_ROUTE_PROGRESS=1이면
+// 전역 capture click 리스너와 진행바 렌더를 모두 끈다. nav 터치 문제가 이때 사라지면
+// RouteProgress가 원인. (현 구현은 preventDefault/stopPropagation을 호출하지 않아 가능성 낮음)
+const DISABLED = process.env.NEXT_PUBLIC_DISABLE_ROUTE_PROGRESS === "1";
+
 function isPlainLeftClick(event: MouseEvent) {
   return (
     event.button === 0 &&
@@ -26,6 +31,8 @@ export default function RouteProgress() {
   const fallbackTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
+    if (DISABLED) return;
+
     function clearTimers() {
       if (showTimerRef.current) window.clearTimeout(showTimerRef.current);
       if (hideTimerRef.current) window.clearTimeout(hideTimerRef.current);
@@ -79,7 +86,7 @@ export default function RouteProgress() {
     };
   }, [pathname, pending]);
 
-  if (!pending) return null;
+  if (DISABLED || !pending) return null;
 
   return (
     <div className="pointer-events-none fixed inset-x-0 top-0 z-[120]">

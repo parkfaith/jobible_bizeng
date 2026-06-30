@@ -121,7 +121,7 @@ export default async function StatsPage() {
 
   return (
     <div className="app-shell flex flex-col max-w-md mx-auto bg-slate-950">
-      <main className="flex-1 overflow-y-auto overscroll-contain px-4 pt-7 pb-4">
+      <main className="app-scroll px-4 pt-7 pb-4">
       {/* Header */}
       <div className="flex items-center gap-3 mb-5">
         <Link href="/" className="tap-target flex items-center justify-center text-slate-400 text-2xl leading-none">

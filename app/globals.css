@@ -69,17 +69,35 @@ summary {
 }
 
 /* nav가 있는 화면의 셸 — body 하단 안전영역 위로 확장해 nav가 물리적 바닥까지 닿게 한다.
-   음수 margin으로 body 높이는 그대로 유지(스크롤/오버플로 없음). 다른 화면은 영향 없음. */
+   음수 margin으로 body 높이는 그대로 유지(스크롤/오버플로 없음). 다른 화면은 영향 없음.
+   overflow:hidden — 내부 스크롤은 .app-scroll가 전담하고 셸 자체는 절대 넘치지 않는다.
+   (셸이 넘치면 nav가 뷰포트 밖으로 밀려 터치 불가가 된다) */
 .app-shell {
   height: calc(100% + env(safe-area-inset-bottom));
   margin-bottom: calc(-1 * env(safe-area-inset-bottom));
+  overflow: hidden;
+}
+
+/* flex column 셸 안의 스크롤 영역 — min-height:0이 핵심.
+   flex 자식의 기본 min-height는 auto라 콘텐츠보다 작아지지 못한다.
+   그러면 비동기 콘텐츠가 채워졌을 때 이 영역이 nav를 셸 바닥 밖으로 밀어내
+   하단 nav 터치가 안 먹는다. min-height:0이 있어야 overflow-y가 실제로 작동한다. */
+.app-scroll {
+  flex: 1 1 0%;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .bottom-nav {
   /* nav가 하단 안전영역을 직접 소유: 배경은 바닥까지, 콘텐츠는 홈 인디케이터 위로 */
   padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
+  /* hit-test 최상위 보장: 자체 쌓임 맥락(isolate)으로 형제 위 콘텐츠가 터치를 가로채지 못하게 한다 */
+  position: relative;
   z-index: 100;
+  isolation: isolate;
   pointer-events: auto;
+  touch-action: manipulation;
   transform: translateZ(0);
   -webkit-transform: translateZ(0);
   backface-visibility: hidden;
@@ -91,6 +109,8 @@ summary {
   min-height: 56px;
   padding-left: 0.25rem;
   padding-right: 0.25rem;
+  position: relative;
+  z-index: 1;
   pointer-events: auto;
 }
 
