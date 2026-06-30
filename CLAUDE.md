@@ -38,7 +38,7 @@ app/
     page.tsx                  # 지원 공고 관리 (force-dynamic, 서버 컴포넌트)
     JdClient.tsx              # 공고 붙여넣기·분석·삭제 (클라이언트)
   patterns/page.tsx           # 오늘의 답변 패턴세트 상세·수정·다시 생성 (클라이언트)
-  review/page.tsx             # 날짜별 패턴 복습 캘린더 + 최근 패턴 목록 (서버 컴포넌트)
+  review/page.tsx             # 학습 캘린더(공부한 날=연습 세션 기준 체크) + 패턴 복습 목록 (서버 컴포넌트)
   stats/page.tsx              # 성장 통계 — 연습 횟수·점수 추이·면접 피드백 (서버 컴포넌트)
   api/
     profile/route.ts          # GET, POST (upsert)
@@ -120,4 +120,5 @@ GitHub `master` 브랜치에 푸시하면 Vercel에서 자동으로 프로덕션
 축적 루프 3종 완료: 약점 추적 루프(과거 피드백 → 다음 면접 반영), 핵심 답변 마스터 모드(같은 질문 재도전 + 점수 델타), JD 모드(채용공고 기반 맞춤 면접 + 커버리지 피드백). 상세는 `agents.md` 14절, `docs/handoff.md` 28절.
 하단 nav 뜸 현상을 dvh(동적 뷰포트)로 보정 (실기기 검증 필요).
 터치 이슈 구조 보정 (2026-06-12): min-h-screen→min-h-full(vh/dvh 어긋남으로 하단 버튼이 홈 인디케이터 아래로 밀리던 문제), tap-target :active 피드백, JD 진입 링크 버튼화. 실기기 검증 필요.
-다음 작업 후보: iPhone 실기기 테스트 (터치 보정·마스터 모드·JD 면접·nav 밀착), Codex 코드리뷰.
+복습 캘린더 체크 기준 변경 (2026-06-30): 기존 "패턴 발급일"(화면 열면 자동 발급되어 실제 학습과 어긋남)에서 "공부한 날=연습 세션(abandoned 제외) 기준"으로 전환. 세션 startedAt이 UTC라 KST 날짜로 변환(utcSqliteToKstDate). 패턴 복습 목록은 그대로 유지(아카이브).
+다음 작업 후보: iPhone 실기기 테스트 (터치 보정·마스터 모드·JD 면접·nav 밀착·복습 체크 기준), Codex 코드리뷰.

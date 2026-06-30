@@ -1,7 +1,7 @@
 import Link from "next/link";
-import { and, desc, eq, like, or } from "drizzle-orm";
+import { and, desc, eq, like, ne, or } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { dailyPatterns } from "@/lib/db/schema";
+import { dailyPatterns, practiceSessions } from "@/lib/db/schema";
 import {
   DAILY_PATTERN_SET_TYPE,
   WEEKLY_SUMMARY_SET_TYPE,
@@ -60,8 +60,27 @@ export default async function ReviewPage({
   const dailyDateSet = new Set(items.filter((i) => i.kind === "daily").map((i) => i.date));
   const weeklyDateSet = new Set(items.filter((i) => i.kind === "weekly").map((i) => i.date));
 
-  const monthDays = buildMonthDays(dailyDateSet, weeklyDateSet, selectedMonth, todayKst);
-  const dailyCount = dailyDateSet.size;
+  // 실제 "공부한 날" = 중도포기를 제외한 연습/면접 세션이 있는 날 (KST 기준)
+  const sessionRows = await db
+    .select({ startedAt: practiceSessions.startedAt })
+    .from(practiceSessions)
+    .where(ne(practiceSessions.status, "abandoned"));
+
+  const studiedDateSet = new Set<string>();
+  for (const row of sessionRows) {
+    if (!row.startedAt) continue;
+    const kstDate = utcSqliteToKstDate(row.startedAt);
+    if (kstDate && kstDate.startsWith(`${selectedMonth}-`)) studiedDateSet.add(kstDate);
+  }
+
+  const monthDays = buildMonthDays(
+    dailyDateSet,
+    weeklyDateSet,
+    studiedDateSet,
+    selectedMonth,
+    todayKst
+  );
+  const studiedCount = studiedDateSet.size;
   const weeklyCount = weeklyDateSet.size;
 
   const prev = offsetMonth(selectedMonth, -1);
@@ -113,8 +132,8 @@ export default async function ReviewPage({
         {/* Legend */}
         <div className="flex items-center gap-3 mb-3 justify-end">
           <span className="flex items-center gap-1 text-slate-500 text-xs">
-            <span className="w-2 h-2 rounded-full bg-amber-300 inline-block" />
-            일별 {dailyCount}
+            <span className="w-2 h-2 rounded-full bg-indigo-400 inline-block" />
+            공부함 {studiedCount}일
           </span>
           <span className="flex items-center gap-1 text-slate-500 text-xs">
             <span className="w-2 h-2 rounded-full bg-emerald-300 inline-block" />
@@ -135,25 +154,37 @@ export default async function ReviewPage({
         <div className="grid grid-cols-7 gap-1.5">
           {monthDays.map((day, index) => {
             if (!day) return <div key={`empty-${index}`} className="aspect-square" />;
-            const hasData = day.hasPattern || day.hasWeekly;
+            // 셀 클릭 시 해당 날짜의 패턴 카드로 스크롤 — 패턴/주간 카드가 있는 날만 링크
+            const hasCard = day.hasPattern || day.hasWeekly;
             const base = `aspect-square rounded-xl flex flex-col items-center justify-center border text-xs font-medium transition-colors ${
               day.isToday ? "ring-1 ring-inset ring-indigo-400" : ""
             }`;
-            const colorClass = day.hasWeekly
-              ? "bg-emerald-500/15 border-emerald-500/30 text-white"
+            // 색상 우선순위: 공부한 날(세션) > 주간 요약 > 패턴 발급일 > 없음
+            const colorClass = day.hasStudied
+              ? "bg-indigo-500/20 border-indigo-400/40 text-white"
+              : day.hasWeekly
+              ? "bg-emerald-500/10 border-emerald-500/25 text-slate-300"
               : day.hasPattern
-              ? "bg-amber-500/15 border-amber-500/30 text-white"
+              ? "bg-slate-800 border-slate-700 text-slate-400"
               : "bg-slate-900 border-slate-800 text-slate-600";
 
-            return hasData ? (
+            const marker = day.hasStudied ? (
+              <span className="mt-0.5 text-indigo-300 text-[10px] leading-none">✓</span>
+            ) : day.hasWeekly ? (
+              <span className="mt-0.5 w-1.5 h-1.5 rounded-full bg-emerald-300" />
+            ) : day.hasPattern ? (
+              <span className="mt-0.5 w-1.5 h-1.5 rounded-full bg-amber-300" />
+            ) : null;
+
+            return hasCard ? (
               <a key={day.date} href={`#date-${day.date}`} className={`${base} ${colorClass} active:opacity-70`}>
                 <span>{day.label}</span>
-                {day.hasWeekly && <span className="mt-0.5 w-1.5 h-1.5 rounded-full bg-emerald-300" />}
-                {!day.hasWeekly && day.hasPattern && <span className="mt-0.5 w-1.5 h-1.5 rounded-full bg-amber-300" />}
+                {marker}
               </a>
             ) : (
               <div key={day.date} className={`${base} ${colorClass}`}>
                 <span>{day.label}</span>
+                {marker}
               </div>
             );
           })}
@@ -306,6 +337,7 @@ function offsetMonth(monthStr: string, delta: number): string {
 function buildMonthDays(
   dailyDateSet: Set<string>,
   weeklyDateSet: Set<string>,
+  studiedDateSet: Set<string>,
   monthStr: string,
   todayKst: string
 ) {
@@ -318,6 +350,7 @@ function buildMonthDays(
     label: number;
     hasPattern: boolean;
     hasWeekly: boolean;
+    hasStudied: boolean;
     isToday: boolean;
   } | null> = [];
 
@@ -330,11 +363,22 @@ function buildMonthDays(
       label: day,
       hasPattern: dailyDateSet.has(date),
       hasWeekly: weeklyDateSet.has(date),
+      hasStudied: studiedDateSet.has(date),
       isToday: date === todayKst,
     });
   }
 
   return days;
+}
+
+// SQLite datetime('now')는 UTC "YYYY-MM-DD HH:MM:SS" 형식 — KST 날짜로 변환한다.
+// (밤 늦은 연습이 다음 날로 밀리지 않도록 캘린더 날짜 기준과 맞춘다)
+function utcSqliteToKstDate(value: string): string | null {
+  const iso = value.includes("T") ? value : value.replace(" ", "T");
+  const utc = iso.endsWith("Z") ? iso : `${iso}Z`;
+  const d = new Date(utc);
+  if (Number.isNaN(d.getTime())) return null;
+  return getKstDate(d);
 }
 
 function formatMonth(monthStr: string) {
