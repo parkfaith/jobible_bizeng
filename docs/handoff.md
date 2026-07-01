@@ -620,3 +620,14 @@ windows sandbox: setup refresh failed with status exit code: 1
 - 마스터 모드: 첫 재도전 비교 기준이 최종 답변인지, 2회차부터 직전 답변인지
 - 약점 주입 면접 품질 (2회차 면접에서 "지난번 지적사항 점검" 카드)
 - 하단 nav 밀착 (주소창 접힘 상태 포함, SW 캐시 새로고침 후)
+
+## 29. 2026-07-01 학습 캘린더 정리 (nav 라벨 + 면접 제외)
+
+배경: 하단 nav "복습" 라벨이 실제 화면(학습 캘린더)과 어긋났고, ✓ 체크 기준이 명확하지 않다는 피드백.
+
+- **nav 라벨 통일**: 하단 nav "복습" → "학습" (홈·답변 노트·학습·통계 4개 페이지). 화면 제목 h1 "학습 캘린더"와 일치. review 페이지의 "패턴 복습" eyebrow·"복습 목록" 섹션 제목, patterns "지난 패턴 복습하기" 버튼은 실제 복습 맥락이라 유지.
+- **✓ 체크 기준에서 면접 제외**: `app/review/page.tsx` "공부한 날" 집계 쿼리에 `mode='daily'` 필터 추가. 기존 `ne(status,'abandoned')`만 → `and(eq(mode,'daily'), ne(status,'abandoned'))`.
+  - 이유: 면접은 주 3회 제한 + 토큰 비용으로 아껴 쓰는 리소스라 매일 습관 트래킹 지표에 부적합. 역할 분리 → **학습 캘린더=daily 연습 습관 / 통계=면접 성과**.
+  - 알려진 트레이드오프: "그날 면접만 하고 daily 연습은 안 한 날"은 ✓가 안 찍힘(면접 기록은 통계에서 확인).
+- ✓ 판정에서 daily 세션 상태는 여전히 `in_progress` 포함(에러 중단 세션도 카운트). "completed만 인정"으로 엄격화하려면 `review/page.tsx`의 `ne(status,'abandoned')`를 `eq(status,'completed')`로 변경.
+- `npm run build` 통과. 실기기 검증 항목 없음(서버 집계 로직 변경).

@@ -197,7 +197,7 @@ export default async function HomePage() {
         </Link>
         <Link href="/review" className="tap-target flex flex-col items-center justify-center gap-1 text-slate-500">
           <span className="text-xl">🗓️</span>
-          <span className="text-xs">복습</span>
+          <span className="text-xs">학습</span>
         </Link>
         <Link href="/stats" className="tap-target flex flex-col items-center justify-center gap-1 text-slate-500">
           <span className="text-xl">📊</span>

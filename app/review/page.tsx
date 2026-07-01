@@ -60,11 +60,18 @@ export default async function ReviewPage({
   const dailyDateSet = new Set(items.filter((i) => i.kind === "daily").map((i) => i.date));
   const weeklyDateSet = new Set(items.filter((i) => i.kind === "weekly").map((i) => i.date));
 
-  // 실제 "공부한 날" = 중도포기를 제외한 연습/면접 세션이 있는 날 (KST 기준)
+  // 실제 "공부한 날" = 중도포기를 제외한 '오늘의 질문 연습(daily)' 세션이 있는 날 (KST 기준)
+  // 면접(interview)은 주 3회 제한 + 토큰 비용으로 아껴 쓰는 리소스라 습관 트래킹에서 제외한다.
+  // (면접 기록·성과는 통계 화면에서 별도로 확인)
   const sessionRows = await db
     .select({ startedAt: practiceSessions.startedAt })
     .from(practiceSessions)
-    .where(ne(practiceSessions.status, "abandoned"));
+    .where(
+      and(
+        eq(practiceSessions.mode, "daily"),
+        ne(practiceSessions.status, "abandoned")
+      )
+    );
 
   const studiedDateSet = new Set<string>();
   for (const row of sessionRows) {
@@ -238,7 +245,7 @@ export default async function ReviewPage({
         </Link>
         <Link href="/review" className="tap-target flex flex-col items-center justify-center gap-1 text-indigo-400">
           <span className="text-xl">🗓️</span>
-          <span className="text-xs">복습</span>
+          <span className="text-xs">학습</span>
         </Link>
         <Link href="/stats" className="tap-target flex flex-col items-center justify-center gap-1 text-slate-500">
           <span className="text-xl">📊</span>
